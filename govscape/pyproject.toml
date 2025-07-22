@@ -25,7 +25,8 @@ flask-cors = "5.0.1"
 diskannpy = "^0.7.0"
 reportlab = "^4.4.1"
 pytest = "^8.4.0"
-pypdfium2 = "^4.30.1"
+pypdfium2 = "^4.30"
+whoosh = "^2.7.4"
 
 
 [build-system]
