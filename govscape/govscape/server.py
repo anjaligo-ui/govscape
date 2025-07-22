@@ -55,6 +55,9 @@ class Server:
         else:
             raise ValueError(f"Unsupported index type: {self.index_type}")
 
+        self.keyword_index = WhooshIndex(self.index_keyword_directory)
+        self.keyword_index.load_index()
+
         self.filt = Filter(config)
 
         # Get the absolute path to the build directory
@@ -93,6 +96,9 @@ class Server:
         elif search_type == 'visual':
             query_embedding = self.visual_model.encode_text(query)
             index = self.visual_index
+        elif search_type == 'keyword':
+            query_embedding = query
+            index = self.keyword_index
         else:
             raise ValueError(f"Unsupported search type: {search_type}")
 
