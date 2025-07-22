@@ -68,7 +68,7 @@
   async function downloadPDF() {
     if (!pdfData?.id) return;
     // Construct the S3 URL
-    const s3Url = `https://bcgl-public-bucket.s3.amazonaws.com/prod-serving/PDFs/${pdfData.id}`;
+    const s3Url = `https://bcgl-public-bucket.s3.amazonaws.com/prod-serving/PDFs/${pdfData.id}.pdf`;
     try {
       const response = await fetch(s3Url);
       if (!response.ok) throw new Error('Failed to download PDF');
