@@ -8,8 +8,8 @@ import struct
 import json
 from .api import init_api
 from .filter import Filter
-from .indexing import DiskANNIndex, FAISSIndex
-
+from .indexing import DiskANNIndex, FAISSIndex, WhooshIndex
+0
 # basic pipeline developed:
 # 1. accept a query until EOF detected
 # 2. run an embedding model on the query

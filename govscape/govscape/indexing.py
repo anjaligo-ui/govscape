@@ -268,7 +268,7 @@ class WhooshIndex(AbstractKeywordIndex):
             q = parser.parse(query)
             results = searcher.search(q, limit=k)
             pdf_names = [r['pdf_name'] for r in results]
-            pages = [r['page'] for r in results]
+            pages = [str(r['page']) for r in results]
             scores = [r.score for r in results]
         return scores, pdf_names, pages
 

@@ -452,7 +452,7 @@ class PDFsToEmbeddings:
                         text = f.read()
                     if text.strip():
                         texts.append(text)
-                        pdf_names.append(os.path.splitext(pdf_file)[0].rpartition('_')[0])
+                        pdf_names.append(os.path.splitext(pdf_file)[0])
                         # Extract page number from filename (assumes format: <pdfname>_<page>.txt)
                         page_num = int(os.path.splitext(txt_file)[0].split('_')[-1])
                         pages.append(page_num)
