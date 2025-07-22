@@ -183,7 +183,13 @@ if __name__ == '__main__':
 
             # delete the directories 
             if os.path.exists(DATA_DIR):
-                shutil.rmtree(DATA_DIR)
+                shutil.rmtree(DATA_DIR + "/embeddings")
+                shutil.rmtree(DATA_DIR + "/embeddings_img_pg")
+                shutil.rmtree(DATA_DIR + "/embeddings_img_extracted")
+                shutil.rmtree(DATA_DIR + "/txt")
+                shutil.rmtree(DATA_DIR + "/img")
+                shutil.rmtree(DATA_DIR + "/img_extracted")
+                shutil.rmtree(DATA_DIR + "/metadata")
                 os.makedirs(DATA_DIR, exist_ok=True)
 
             if os.path.exists(pdf_directory):
