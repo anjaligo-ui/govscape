@@ -154,7 +154,6 @@ if __name__ == '__main__':
         # # get list of pdf file names
         # pdf_files = [obj['Key'] for obj in result.get('Contents', []) if obj['Key'].endswith('.pdf')]  # note this only returns 1000
 
-        
         overall_start_time = time.time()
 
         # get the pdf files from s3
@@ -190,7 +189,7 @@ if __name__ == '__main__':
 
             process_pdfs(local_batch, processor)
 
-            # delete the directories 
+            # delete the directories except for the indices which will continue to be updated
             if os.path.exists(DATA_DIR):
                 shutil.rmtree(DATA_DIR + "/embeddings")
                 shutil.rmtree(DATA_DIR + "/embeddings_img_pg")
@@ -203,6 +202,11 @@ if __name__ == '__main__':
                 shutil.rmtree(pdf_directory)
                 os.makedirs(pdf_directory, exist_ok=True)
         
+        # After all batches are processed, clean up the directories
+        if os.path.exists(DATA_DIR):
+            shutil.rmtree(DATA_DIR)
+            os.makedirs(DATA_DIR, exist_ok=True)
+
         overall_end_time = time.time()
         print("TOTAL TIME TO LOAD IS ", (overall_end_time - overall_start_time))
         print("TOTAL TIME list pdfs:",  pipeline_times['list'])
