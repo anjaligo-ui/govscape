@@ -17,7 +17,7 @@ def main():
     local_dir_base = 'data/archive/2020/PDFs'
     output_bucket_name = 'bcgl-public-bucket'
     output_directory_base = 'archive/2020/PDFs'
-    num_processes = multiprocessing.cpu_count() * 6
+    num_processes = multiprocessing.cpu_count() * 5
     batch_size = len(df) // num_processes + 1
 
     batches = [(df[i:i + batch_size], idx, output_bucket_name, output_directory_base, num_processes) for idx, i in enumerate(range(0, len(df), batch_size))]
@@ -37,13 +37,30 @@ def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_director
         s3_url = f'https://eotarchive.s3.amazonaws.com/{filename}'
         myagent = 'govscape/0.1 (PDF Retrieval Script; kdeeds@cs.washington.edu)'
         byte_range = f'bytes={offset}-{offset + length - 1}'
-        # Send the HTTP GET request to the S3 URL with the specified byte range
-        response = requests.get(
-            s3_url,
-            headers={'user-agent': myagent, 'Range': byte_range},
-            stream=True
-        )
+        object_exists = False
+
+        if (idx == 0) and (processed_pdfs % 100 == num_processes):
+            print(f'Processed {processed_pdfs} PDFs in {time.time() - start_time:.4f} seconds')
+            pdf_per_second = processed_pdfs / (time.time() - start_time)
+            print(f'Time Remaining: {(len(file_batch)- i) * num_processes / pdf_per_second :.4f} seconds')
+            print(f'Time per PDF: {1 / pdf_per_second:.4f} seconds')
+        
         try:
+            s3.head_object(Bucket=output_bucket_name, Key=os.path.join(output_directory, digest + '.pdf'))
+            object_exists = True
+        except Exception as e:
+            pass  # Object does not exist, continue to download
+        if object_exists:
+            processed_pdfs += num_processes
+            continue
+        
+        # Send the HTTP GET request to the S3 URL with the specified byte range
+        try:
+            response = requests.get(
+                s3_url,
+                headers={'user-agent': myagent, 'Range': byte_range},
+                stream=True
+            )
             for record in ArchiveIterator(response.raw):
                 if record.rec_type == 'response':
                     is_valid_pdf = (record.rec_headers.get('Content-Type') == 'application/pdf') or (".pdf" in record.rec_headers.get('WARC-Target-URI', ''))
@@ -56,11 +73,6 @@ def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_director
                         Body=record.content_stream().read()
                     )
                     processed_pdfs += num_processes
-                    if (idx == 0) and (processed_pdfs % 100 == 0):
-                        print(f'Processed {processed_pdfs} PDFs in {time.time() - start_time:.4f} seconds')
-                        pdf_per_second = processed_pdfs / (time.time() - start_time)
-                        print(f'Time Remaining: {(len(file_batch)- i) * num_processes / pdf_per_second :.4f} seconds')
-                        print(f'Time per PDF: {1 / pdf_per_second:.4f} seconds')
                         
         except Exception as e:
             print(f"Error processing {filename}: {e}")

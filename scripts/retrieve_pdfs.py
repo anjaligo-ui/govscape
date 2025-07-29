@@ -34,13 +34,13 @@ def retrieve_and_store_pdfs(pdf_warc_files, local_dir, output_bucket_name, outpu
         s3_url = f'https://eotarchive.s3.amazonaws.com/{filename}'
         myagent = 'govscape/0.1 (PDF Retrieval Script; kdeeds@cs.washington.edu)'
 
-        # Send the HTTP GET request to the S3 URL with the specified byte range
-        response = requests.get(
-            s3_url,
-            headers={'user-agent': myagent}
-        )
-        print('Downloaded WARC file:', filename)
         try:
+        # Send the HTTP GET request to the S3 URL with the specified byte range
+            response = requests.get(
+                s3_url,
+                headers={'user-agent': myagent}
+            )
+            print('Downloaded WARC file:', filename)
             for record in ArchiveIterator(io.BytesIO(response.content)):
                 if record.rec_type == 'response':
                     is_valid_pdf = (record.rec_headers.get('Content-Type') == 'application/pdf') or (".pdf" in record.rec_headers.get('WARC-Target-URI', ''))
