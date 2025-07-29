@@ -110,7 +110,7 @@ class Server:
         # Search for the k closest arrays
         D, pdf_names, pdf_pages = index.search(query_embedding, self.k)
 
-        pdf_metadata = self.metadata_index.get_metadata(pdf_names, filters)
+        pdf_metadata = self.metadata_index.search(pdf_names, filters)
             
         search_results = []
         for distance, name, page in zip(D, pdf_names, pdf_pages):

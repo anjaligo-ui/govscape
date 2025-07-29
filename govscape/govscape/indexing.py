@@ -383,15 +383,16 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
             self.conn.commit()
 
     def search(self, pdf_names, filter=None):
-        if self.conn is None:
-            self.load_index()
-        placeholders = ",".join(f"{name}" for name in pdf_names)
-        query = f"SELECT url, crawl_date, pdf_name, sub_domain, s3_url FROM metadata WHERE pdf_name IN ({placeholders})"
+        placeholders = ",".join(f"'{name}'" for name in pdf_names)
+        query = f"SELECT url, crawl_date, pdf_name, sub_domain FROM metadata WHERE pdf_name IN ({placeholders})"
         if filter:
             for key, value in filter.items():
-                query += f" AND {key}={value}"
-        self.cursor.execute(query)
-        rows = self.cursor.fetchall()
+                if key == 'subdomain' and value != None:
+                    query += f" AND sub_domain='{value}'"
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(query)
+        rows = cursor.fetchall()
         metadata = dict()
         for row in rows:
             pdf_name = row[2]
@@ -399,8 +400,7 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
                     "url": row[0],
                     "crawl_date": row[1],
                     "pdf_name": row[2],
-                    "sub_domain": row[3],
-                    "s3_url": row[4]
+                    "sub_domain": row[3]
                 }
             if pdf_name not in metadata:
                 metadata[pdf_name] = [row_dict]
