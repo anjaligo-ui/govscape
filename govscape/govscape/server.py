@@ -8,7 +8,7 @@ import struct
 import json
 from .api import init_api
 from .filter import Filter
-from .indexing import DiskANNIndex, FAISSIndex, WhooshIndex
+from .indexing import DiskANNIndex, FAISSIndex, WhooshIndex, SQLiteMetadataIndex
 0
 # basic pipeline developed:
 # 1. accept a query until EOF detected
@@ -27,6 +27,7 @@ class Server:
         self.index_directory = config.index_directory
         self.index_img_pg_directory = config.index_img_pg_directory
         self.index_keyword_directory = config.index_keyword_directory
+        self.index_metadata_directory = config.index_metadata_directory
         self.image_directory = config.image_directory
         self.index_type = config.index_type
         self.k = config.k
@@ -58,6 +59,9 @@ class Server:
         self.keyword_index = WhooshIndex(self.index_keyword_directory)
         self.keyword_index.load_index()
 
+        self.metadata_index = SQLiteMetadataIndex(self.index_metadata_directory)
+        self.metadata_index.load_index()
+
         self.filt = Filter(config)
 
         # Get the absolute path to the build directory
@@ -78,6 +82,7 @@ class Server:
 
         @self.app.route("/")
         def serve_index():
+            print("Serving index.html")
             return self.app.send_static_file("index.html")
 
         @self.app.route("/images/<path:filename>")
@@ -105,19 +110,23 @@ class Server:
         # Search for the k closest arrays
         D, pdf_names, pdf_pages = index.search(query_embedding, self.k)
 
+        pdf_metadata = self.metadata_index.get_metadata(pdf_names, filters)
+            
         search_results = []
         for distance, name, page in zip(D, pdf_names, pdf_pages):
-            jpeg_file = self.image_directory + "/" + name + "/" + name + "_" + page + '.jpeg'
-            search_results.append({
-                "pdf": name, 
-                "page": page, 
-                "distance": float(distance), 
-                "jpeg": jpeg_file
-            })
+            metadata = pdf_metadata.get(name, None)
+            if metadata:
+                metadata = metadata[0]  # TODO: Handle multiple crawl dates
+                jpeg_file = self.image_directory + "/" + name + "/" + name + "_" + page + '.jpeg'
+                search_results.append({
+                    "pdf": name, 
+                    "page": page, 
+                    "distance": float(distance), 
+                    "jpeg": jpeg_file,
+                    "crawl_url" : metadata.get("url", ""),
+                    "crawl_date": metadata.get("crawl_date", ""),
+                })
         
-        if filters and search_results:
-            search_results = self.filt.filter_results(search_results, filters)
-            
         return {"results": search_results}
 
     def pdf_pages(self, pdf_id):
@@ -162,6 +171,6 @@ class Server:
         except EOFError:
             print("\nThank you for using!")
 
-    def run(self, host="0.0.0.0", port=8080, debug=False):
+    def run(self, host="localhost", port=8080, debug=False):
         """Run the Flask server."""
         self.app.run(host=host, port=port, debug=debug)

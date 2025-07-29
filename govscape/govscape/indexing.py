@@ -28,6 +28,7 @@ def suppress_output():
 
 with suppress_output():
     import faiss
+import sqlite3
 
 class AbstractVectorIndex(ABC):
 
@@ -281,3 +282,135 @@ class WhooshIndex(AbstractKeywordIndex):
     def total_pages(self):
         # Alias for total_texts (since each doc is a page)
         return self.total_texts()
+    
+
+class AbstractMetadataIndex(ABC):
+
+    @abstractmethod
+    def __init__(self, index_metadata_directory):
+        self.index_metadata_directory = index_metadata_directory
+        pass
+
+    @abstractmethod
+    def build_index(self):
+        """
+        Instantiate the index in the directory 'self.index_metadata_directory'
+        which should store the following data:
+        url, crawl_date, pdf_name, sub_domain
+        """
+        pass
+
+    @abstractmethod
+    def add_batch(self, metadata_dicts):
+        """
+        Add a batch of metadata dictionaries to the index which each 
+        contain url, crawl_date, pdf_name, and sub_domain.
+        """
+        pass
+
+    @abstractmethod
+    def load_index(self):
+        """
+        Load the index from 'self.index_metadata_directory'.
+        """
+        pass
+
+    @abstractmethod
+    def save_index(self):
+        """
+        Save the index to 'self.index_metadata_directory'.
+        """
+        pass
+
+    @abstractmethod
+    def search(self, pdf_names, filter):
+        """
+        Return the metadata for the pdfs in 'pdf_names' that satisfy 'filter'.
+        """
+        pass
+
+    @abstractmethod
+    def total_docs(self):
+        """
+        Returns the total number of documents in the index.
+        :return: Total number of embeddings.
+        """
+        pass
+
+class SQLiteMetadataIndex(AbstractMetadataIndex):
+    def __init__(self, index_metadata_directory):
+        self.index_metadata_directory = index_metadata_directory
+        self.db_path = os.path.join(self.index_metadata_directory, "metadata.db")
+        self.conn = None
+        self.cursor = None
+
+    def build_index(self):
+        if not os.path.exists(self.index_metadata_directory):
+            os.makedirs(self.index_metadata_directory)
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS metadata (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT,
+                crawl_date TEXT,
+                pdf_name TEXT,
+                sub_domain TEXT
+            )
+        """)
+        self.conn.commit()
+
+    def add_batch(self, metadata_dicts):
+        if self.conn is None:
+            self.conn = sqlite3.connect(self.db_path)
+            self.cursor = self.conn.cursor()
+        to_insert = [
+            (md.get("url", ""), md.get("crawl_date", ""), md.get("pdf_name", ""), md.get("sub_domain", ""))
+            for md in metadata_dicts
+        ]
+        self.cursor.executemany(
+            "INSERT INTO metadata (url, crawl_date, pdf_name, sub_domain) VALUES (?, ?, ?, ?)",
+            to_insert
+        )
+        self.conn.commit()
+
+    def load_index(self):
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+
+    def save_index(self):
+        if self.conn:
+            self.conn.commit()
+
+    def search(self, pdf_names, filter=None):
+        if self.conn is None:
+            self.load_index()
+        placeholders = ",".join(f"{name}" for name in pdf_names)
+        query = f"SELECT url, crawl_date, pdf_name, sub_domain, s3_url FROM metadata WHERE pdf_name IN ({placeholders})"
+        if filter:
+            for key, value in filter.items():
+                query += f" AND {key}={value}"
+        self.cursor.execute(query)
+        rows = self.cursor.fetchall()
+        metadata = dict()
+        for row in rows:
+            pdf_name = row[2]
+            row_dict = {
+                    "url": row[0],
+                    "crawl_date": row[1],
+                    "pdf_name": row[2],
+                    "sub_domain": row[3],
+                    "s3_url": row[4]
+                }
+            if pdf_name not in metadata:
+                metadata[pdf_name] = [row_dict]
+            else:
+                metadata[pdf_name].append(row_dict)
+        # Return as a dict with lists of dicts representing every time the pdf was crawled
+        return metadata
+
+    def total_docs(self):
+        if self.conn is None:
+            self.load_index()
+        self.cursor.execute("SELECT COUNT(*) FROM metadata")
+        return self.cursor.fetchone()[0]
