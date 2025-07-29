@@ -106,28 +106,37 @@ class Server:
             index = self.keyword_index
         else:
             raise ValueError(f"Unsupported search type: {search_type}")
-
-        # Search for the k closest arrays
-        D, pdf_names, pdf_pages = index.search(query_embedding, self.k)
-
-        pdf_metadata = self.metadata_index.search(pdf_names, filters)
-            
-        search_results = []
-        for distance, name, page in zip(D, pdf_names, pdf_pages):
-            metadata = pdf_metadata.get(name, None)
-            if metadata:
-                metadata = metadata[0]  # TODO: Handle multiple crawl dates
-                jpeg_file = self.image_directory + "/" + name + "/" + name + "_" + page + '.jpeg'
-                search_results.append({
-                    "pdf": name, 
-                    "page": page, 
-                    "distance": float(distance), 
-                    "jpeg": jpeg_file,
-                    "crawl_url" : metadata.get("url", ""),
-                    "crawl_date": metadata.get("crawl_date", ""),
-                    "sub_domain": metadata.get("sub_domain", ""),
-                })
         
+        current_k = self.k
+        search_results = []
+        while len(search_results) < self.k:
+            if current_k > min(100000, index.total_embeddings()): 
+                break # TODO: If we have to expand beyond 100k, we should do the filter first
+            if current_k > self.k:
+                print("doubling k to " + str(current_k) + " to find more results")
+
+            # Search for the k closest arrays
+            D, pdf_names, pdf_pages = index.search(query_embedding, current_k)
+
+            pdf_metadata = self.metadata_index.search(pdf_names, filters)
+                
+            search_results = []
+            for distance, name, page in zip(D, pdf_names, pdf_pages):
+                metadata = pdf_metadata.get(name, None)
+                if metadata:
+                    metadata = metadata[0]  # TODO: Handle multiple crawl dates
+                    jpeg_file = self.image_directory + "/" + name + "/" + name + "_" + page + '.jpeg'
+                    search_results.append({
+                        "pdf": name, 
+                        "page": page, 
+                        "distance": float(distance), 
+                        "jpeg": jpeg_file,
+                        "crawl_url" : metadata.get("url", ""),
+                        "crawl_date": metadata.get("crawl_date", ""),
+                        "sub_domain": metadata.get("sub_domain", ""),
+                    })
+            current_k *= 2  # Double the k until we have enough results
+
         return {"results": search_results}
 
     def pdf_pages(self, pdf_id):
