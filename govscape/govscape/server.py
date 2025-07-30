@@ -93,6 +93,20 @@ class Server:
         self.app.server = self
         self.api = init_api(self.app)
 
+    @staticmethod
+    def deduplicate_responses(D, names, pages):
+        seen = set()
+        unique_distances = []
+        unique_names = []
+        unique_pages = []
+        for distance, name, page in zip(D, names, pages):
+            if name not in seen:
+                seen.add(name)
+                unique_distances.append(distance)
+                unique_names.append(name)
+                unique_pages.append(page)
+        return unique_distances, unique_names, unique_pages
+
     def search(self, query, search_type='textual', filters=None):
 
         if search_type == 'textual':
@@ -107,7 +121,7 @@ class Server:
         else:
             raise ValueError(f"Unsupported search type: {search_type}")
         
-        current_k = self.k
+        current_k = self.k * 2
         search_results = []
         while len(search_results) < self.k:
             if current_k > min(100000, index.total_entries()): 
@@ -118,6 +132,8 @@ class Server:
             # Search for the k closest arrays
             D, pdf_names, pdf_pages = index.search(query_embedding, current_k)
 
+            D, pdf_names, pdf_pages = self.deduplicate_responses(D, pdf_names, pdf_pages)
+            
             pdf_metadata = self.metadata_index.search(pdf_names, filters)
                 
             search_results = []
