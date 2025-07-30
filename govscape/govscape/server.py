@@ -151,9 +151,13 @@ class Server:
                         "crawl_date": metadata.get("crawl_date", ""),
                         "sub_domain": metadata.get("sub_domain", ""),
                     })
+
+            if current_k > min(100000, index.total_entries()): 
+                break # TODO: If we have to expand beyond 100k, we should simply do the filtering first
+
             current_k *= 2  # Double the k until we have enough results
 
-        return {"results": search_results}
+        return {"results": search_results[0:min(self.k, len(search_results))]}
 
     def pdf_pages(self, pdf_id):
         """Get all page images for a PDF by pdf_id. Returns dict with 'images' key or error message."""
