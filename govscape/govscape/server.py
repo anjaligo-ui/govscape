@@ -160,7 +160,14 @@ class Server:
         start_index = (page - 1) * self.k
         end_index = start_index + self.k
 
-        return {"results": search_results[start_index:end_index]}
+        return {
+            "results": search_results[start_index:end_index],
+            "pagination": {
+                "page": page,
+                "page_size": self.k,
+                "has_next_page": len(search_results) > end_index,
+            },
+        }
 
     def pdf_pages(self, pdf_id):
         """Get all page images for a PDF by pdf_id. Returns dict with 'images' key or error message."""
