@@ -123,9 +123,6 @@ class Server:
         results_needed_for_page = page * self.k
         search_results = []
         while len(search_results) < results_needed_for_page:
-            if current_k > min(100000, index.total_entries()):
-                break # TODO: If we have to expand beyond 100k, we should do the filter firs
-
             # Search for the k closest arrays
             D, pdf_names, pdf_pages = index.search(query_embedding, current_k)
 
