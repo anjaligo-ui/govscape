@@ -42,31 +42,33 @@ def get_least_used_cuda():
         pynvml.nvmlShutdown()
         return best_device
 
-class TextEmbeddingModel(EmbeddingModel):
+class ST_TextEmbeddingModel(EmbeddingModel):
     def __init__(self):
         self.device = get_least_used_cuda() if torch.cuda.is_available() else "cpu"
-        self.model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device=self.device) 
-        #SentenceTransformer('WhereIsAI/UAE-Large-V1').to(self.device)
+        self.model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2', device=self.device) 
         self.d = self.model.get_sentence_embedding_dimension()
     
-    def encode_text(self, text):
+    def encode_text(self, text, is_query=False):
         with torch.no_grad():
-            embeddings = self.model.encode(text, batch_size=GPU_BATCH_SIZE, device=self.device) # hopefully in batches
-        return embeddings
+            embedding = self.model.encode(text, batch_size=GPU_BATCH_SIZE, device=self.device) # hopefully in batches
+        return embedding
     
-    def encode_text_batch(self, texts):
-        with torch.no_grad():
-            embeddings = self.model.encode(texts, batch_size=GPU_BATCH_SIZE, device=self.device) # hopefully in batches
-        return embeddings
-
     def encode_image(self, jpg_path): # not in use i don't think
-        image = Image.open(jpg_path)
-
+        raise NotImplementedError("TextEmbeddingModel does not support image encoding.")
+    
+class BGE_TextEmbeddingModel(EmbeddingModel):
+    def __init__(self):
+        self.device = get_least_used_cuda() if torch.cuda.is_available() else "cpu"
+        self.model = SentenceTransformer('BAAI/bge-base-en-v1.5', device=self.device) 
+        self.d = self.model.get_sentence_embedding_dimension()
+    
+    def encode_text(self, text, is_query=False):
         with torch.no_grad():
-            caption = (self.image_to_caption(image))[0]['generated_text']
-        image_caption_embed = self.model.encode([caption])
-
-        return image_caption_embed
+            embedding = self.model.encode(text, batch_size=GPU_BATCH_SIZE, device=self.device) # hopefully in batches
+        return embedding
+    
+    def encode_image(self, jpg_path): # not in use i don't think
+        raise NotImplementedError("TextEmbeddingModel does not support image encoding.")
     
 # for sorting file names with page numbers to ensure consistency when batching between txt and npy files (OS could 
     # order file names differently)

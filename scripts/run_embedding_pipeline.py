@@ -21,8 +21,8 @@ def main():
     model = None
     if args.model == "CLIP":
             model = gs.CLIPEmbeddingModel()
-    elif args.model == "UAE":
-            model = gs.TextEmbeddingModel()
+    elif args.model == "ST":
+            model = gs.ST_TextEmbeddingModel()
     processor = gs.PDFsToEmbeddings(pdf_directory, txt_directory, embeddings_directory, image_directory, model)
     processor.pdfs_to_embeddings()
 

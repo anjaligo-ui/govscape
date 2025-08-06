@@ -110,7 +110,7 @@ class Server:
     def search(self, query, search_type='textual', filters=None):
 
         if search_type == 'textual':
-            query_embedding = self.text_model.encode_text(query)
+            query_embedding = self.text_model.encode_text(query, is_query=True)
             index = self.text_index
         elif search_type == 'visual':
             query_embedding = self.visual_model.encode_text(query)

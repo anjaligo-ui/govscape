@@ -26,6 +26,8 @@ if __name__ == '__main__':
     parser.add_argument('--bucket_name', type=str, help='S3 Bucket Name')
     parser.add_argument('--pdf_dir', type=str, help='S3 Directory containing PDFs')
     parser.add_argument('--data_dir', type=str, help='S3 Directory for output data')
+    parser.add_argument('--model_type', type=bool, help='The model type to use for embedding', default='ST')
+    parser.add_argument('--run_type', type=bool, help='Whether to run the embedding or indexing pipeline')
     args = parser.parse_args()
 
     NUM_PAGES_TO_PROCESS = args.num_pages_to_process
@@ -52,7 +54,13 @@ if __name__ == '__main__':
     index_img_directory = os.path.join(DATA_DIR, 'index_img')
     index_keyword_directory = os.path.join(DATA_DIR, 'index_keyword')
 
-    text_model = gs.TextEmbeddingModel()
+    if args.model_type == "ST":
+        text_model = gs.ST_TextEmbeddingModel()
+    elif args.model_type == "BGE":
+        text_model = gs.BGE_TextEmbeddingModel()
+    else:
+        raise ValueError("Unsupported model type")
+
     devices = []
     for i in range(torch.cuda.device_count()):
         devices.append("cuda:" + str(i))
@@ -60,7 +68,7 @@ if __name__ == '__main__':
     model_pool = text_model.model.start_multi_process_pool(target_devices=devices)
     processor = gs.PDFsToEmbeddings(pdf_directory, DATA_DIR, text_model, model_pool)
 
-    progress_path = 'progress.json'  # when downloading files, keeps track of which page you last downloaded so you can resume later. haven't used this yet
+    progress_path = 'progress.json'  # Token to track of which pages have already been processed
 
     # ****************************************************************************************************
     # for analyzing: 

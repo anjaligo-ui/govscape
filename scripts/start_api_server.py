@@ -5,7 +5,7 @@ def main():
     parser = argparse.ArgumentParser(description='Start the GovScape API server')
     parser.add_argument('-p', '--pdf-directory', default='data/test_data/TechnicalReport234PDFs', help='Directory containing PDF files')
     parser.add_argument('-d', '--data-directory', default='data/test_data', help='Directory containing data files')
-    parser.add_argument('-tm', '--text_model', default='UAE', help='The model to use for text embedding.')
+    parser.add_argument('-tm', '--text_model', default='ST', help='The model to use for text embedding.')
     parser.add_argument('-vm', '--visual_model', default='CLIP', help='The model to use for visual embedding.')
     parser.add_argument('-k', '--top-k', type=int, default=20, help='Number of top results to return')
     parser.add_argument('-i', '--index_type', default='Memory', help='The type of index of use')
@@ -17,10 +17,13 @@ def main():
     args = parser.parse_args()
     
     pdf_directory = args.pdf_directory
-    if args.text_model == 'SentenceTransformer':
-        text_model = gs.TextEmbeddingModel()
+    if args.text_model == 'ST':
+        text_model = gs.ST_TextEmbeddingModel()
+    elif args.text_model == 'BGE':
+        text_model = gs.BGE_TextEmbeddingModel()
     else:
         raise ValueError(f"Unsupported text model: {args.text_model}")
+        
     if args.visual_model == 'CLIP':
         visual_model = gs.CLIPEmbeddingModel()
     else:

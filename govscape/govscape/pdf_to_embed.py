@@ -18,67 +18,8 @@ import logging
 import shutil
 import multiprocessing as mp
 import pypdfium2
-from .pdf_to_embed_multigpu import TextEmbeddingModel, compute_text_embeddings
+from .pdf_to_embed_multigpu import BGE_TextEmbeddingModel, ST_TextEmbeddingModel, compute_text_embeddings
 from .indexing import WhooshIndex
-
-
-# OVERALL NOTE FOR THIS VERSION: ********************************************************************************************
-# 1. pdf -> txt -> embed.
-# 2. pdf -> img/pg -> embed. this calls the pdf_to_jpeg file and i believe the image embedding model is in this file.
-# 3. pdf -> extracted img -> embed
-
-# note: handles given a list of pdfs instead of given a dir of pdfs which i am now realizing might not be necessary 
-# since s3_ec2_embedding_pipeline deletes all directories after uploading all generated files to s3...
-
-# note: text embedding model for multi-gpu use is in pdf_to_embed_multigpu.py
-# *******************************************************************************************************************
-
-
-# NOTE for setting up an ec2 instance *******************************************************************************
-# sudo yum update -y
-# sudo yum install git -y
-# git clone https://github.com/bcglee/govscape.git
-# curl -sSL https://install.python-poetry.org | python3 -
-
-# curl -O https://bootstrap.pypa.io/get-pip.py
-# python3 get-pip.py --user
-
-# sudo yum groupinstall "Development Tools" -y
-# sudo yum install gcc openssl-devel bzip2-devel libffi-devel xz-devel wget make -y
-
-# cd /usr/src
-# sudo wget https://www.python.org/ftp/python/3.10.14/Python-3.10.14.tgz
-# sudo tar xzf Python-3.10.14.tgz
-# cd Python-3.10.14
-# sudo ./configure --enable-optimizations
-# sudo make altinstall
-
-# poetry install
-# poetry add boto3  # these probably should be added into the poetry file
-# poetry add nvidia-ml-py3
-
-# sudo yum install -y poppler-utils # for pdf -> img conversion 
-
-# aws configure
-
-# # for activating gpu: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/install-nvidia-driver.html i think it's a little different depending on ec2 instance type
-
-# # nice to have: 
-# sudo yum install tmux
-# aws s3 ls s3://bcgl-public-bucket/2008_EOT_PDFs/data_test_100k_2/embeddings/ --recursive | awk -F'/' '{print $4}' | sort | uniq | wc -l  # ex. for checking how many are in a file
-
-# *******************************************************************************************************************
-
-# IMPORTANT NOTE!!! ********************************************************************************************
-# this code can support using the model from hugging face online (currently commented out) and also local when bulk requests are limited. 
-
-# to download the models locally: 
-# pip install huggingface_hub
-# huggingface-cli download WhereIsAI/UAE-Large-V1 --local-dir ./uae-large-v1  # text model 
-# git clone https://huggingface.co/openai/clip-vit-base-patch32  # image model 
-# git clone https://huggingface.co/nlpconnect/vit-gpt2-image-captioning  # optional, if wanting to put extracted images -> caption -> uae text model to be searched in the same space as text
-# *******************************************************************************************************************
-
 
 # global vars *******************************************************************************************************
 GPU_BATCH_SIZE = 2
@@ -259,14 +200,7 @@ class PDFsToEmbeddings:
         self.text_model = text_model  # TextEmbeddingModel
         self.model_pool = model_pool  # for multi-gpu use, this is the model_pool
 
-
-    # *******************************************************************************************************************
-    # this is the og dif pdf -> dir txt -> dir embed pipeline 
-    # *******************************************************************************************************************
-
-    # (1) pdf -> txt 
-
-    # converts a single pdf file to a txt files (one txt per page)
+    # converts a single pdf file to txt and img files (one of each per page)
     @staticmethod
     def convert_pdf_to_txt_and_img(txts_path, imgs_path, pdfs_path, pdf_file):
         pdf_path = os.path.join(pdfs_path, pdf_file)

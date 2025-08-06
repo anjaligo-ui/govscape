@@ -25,7 +25,7 @@ def check_returned_results(file, server):
 
 def test_server():
     data_directory='tests/test_data/large'
-    model_type='UAE'
+    model_type='ST'
     index_type = "Memory"
     pdf_directory='tests/test_data/large/PDFs'
     txt_directory = os.path.join(data_directory, 'txt')
@@ -35,8 +35,8 @@ def test_server():
 
     if model_type == "CLIP":
         model = gs.CLIPEmbeddingModel()
-    elif model_type == "UAE":
-        model = gs.TextEmbeddingModel()
+    elif model_type == "ST":
+        model = gs.ST_TextEmbeddingModel()
     else:
         raise ValueError("Unsupported model type")
     
