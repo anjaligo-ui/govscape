@@ -27,6 +27,8 @@ if __name__ == '__main__':
     parser.add_argument('--pdf_dir', type=str, help='S3 Directory containing PDFs')
     parser.add_argument('--data_dir', type=str, help='S3 Directory for output data')
     parser.add_argument('--model_type', type=str, help='The model type to use for embedding', default='ST')
+    parser.add_argument('--num_servers', type=int, help='The number of servers to use for embedding', default=1)
+    parser.add_argument('--server_id', type=int, help='The ID of the current server', default=0)
     args = parser.parse_args()
 
     NUM_PAGES_TO_PROCESS = args.num_pages_to_process
@@ -89,7 +91,7 @@ if __name__ == '__main__':
             
             contents = result.get('Contents', [])
             pdf_keys = [obj['Key'] for obj in contents if obj['Key'].endswith('.pdf')]
-
+            pdf_keys = [key for key in pdf_keys if (hash(key) % args.num_servers) == args.server_id]
             pdf_files.extend(pdf_keys)
             pages_retrieved += 1
             if result.get('IsTruncated'):
