@@ -100,7 +100,7 @@ if __name__ == '__main__':
             if not os.path.exists(embedding_file_path):
                 print(f"File {embedding_file_path} does not exist. Skipping.")
                 continue
-            names.append(embedding_file_path.rpartition('/')[0].rpartition('/')[2])
+            names.append(os.path.basename(os.path.dirname(embedding_file_path)))
             pages.append(embedding_file_path.replace(".npy", "").rpartition('_')[2])
             embeddings.append(np.load(embedding_file_path))
         index.add_batch(embeddings, names, pages)

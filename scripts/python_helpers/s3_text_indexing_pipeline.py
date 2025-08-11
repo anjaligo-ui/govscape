@@ -98,7 +98,7 @@ if __name__ == '__main__':
             if not os.path.exists(txt_file_path):
                 print(f"File {txt_file_path} does not exist. Skipping.")
                 continue
-            names.append(txt_file_path.rpartition('/')[0])
+            names.append(os.path.basename(os.path.dirname(txt_file_path)))
             pages.append(txt_file_path.replace(".txt", "").rpartition('_')[2])
             txt = None 
             with open(txt_file_path) as f:

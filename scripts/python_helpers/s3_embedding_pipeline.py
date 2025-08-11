@@ -65,6 +65,7 @@ if __name__ == '__main__':
     for i in range(torch.cuda.device_count()):
         devices.append("cuda:" + str(i))
         print(f"CUDA Device {i}: {torch.cuda.get_device_name(i)}")
+
     model_pool = text_model.model.start_multi_process_pool(target_devices=devices)
     processor = gs.PDFsToEmbeddings(pdf_directory, DATA_DIR, text_model, model_pool)
 
@@ -135,7 +136,7 @@ if __name__ == '__main__':
         upload_directory_to_s3(img_extracted_dir, data_dir_s3)
         print("finished uploading img extracted")
         upload_directory_to_s3(embeddings_directory, data_dir_s3)
-        print("finished uploading embed")
+        print("finished uploading embeddings")
         upload_directory_to_s3(embeddings_img_pg_directory, data_dir_s3)
         print("finished uploading embed img pg")
         upload_directory_to_s3(embeddings_img_extracted_directory, data_dir_s3)

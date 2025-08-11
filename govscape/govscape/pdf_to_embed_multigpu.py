@@ -160,8 +160,8 @@ class TxtsToEmbeddings:
         start = 0
         for i in range(len(chunks)):
             end = start + chunks[i].shape[0]
-            chunk_embed_file_paths.append(embed_file_paths[start: start + end])
-            start = end 
+            chunk_embed_file_paths.append(embed_file_paths[start:end])
+            start = end
         
         if len(chunks) != len(chunk_embed_file_paths):
             raise Exception("chunks and chunk_embed_file_paths should be the same length.")
