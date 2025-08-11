@@ -15,7 +15,7 @@ sudo -u ubuntu bash -c "
 cd /home/ubuntu/govscape && \
 git stash >> /home/ubuntu/govscape/log.txt && \
 git pull >> /home/ubuntu/govscape/log.txt && \
-rm /home/ubuntu/govscape/progress.json && \
+rm /home/ubuntu/govscape/progress.json || true && \
 /home/ubuntu/.local/bin/poetry lock >> /home/ubuntu/govscape/log.txt && \
 /home/ubuntu/.local/bin/poetry install >> /home/ubuntu/govscape/log.txt && \
 /home/ubuntu/.local/bin/poetry run python scripts/python_helpers/s3_embedding_pipeline.py \
