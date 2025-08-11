@@ -129,7 +129,6 @@ class Server:
             D, pdf_names, pdf_pages = self.deduplicate_responses(D, pdf_names, pdf_pages)
             
             pdf_metadata = self.metadata_index.search(pdf_names, filters)
-            print(f"After filtering {len(pdf_metadata)} results for k={current_k}")
                 
             search_results = []
             for distance, name, page_num in zip(D, pdf_names, pdf_pages):
