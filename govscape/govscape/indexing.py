@@ -185,7 +185,6 @@ class FAISSIndex(AbstractVectorIndex):
             pdf_page = self.pdf_pages[I[i]]
             name_results.append(pdf_name)
             page_results.append(pdf_page)
-        print(f"Found {name_results} results for k={k}")
         return D, name_results, page_results
 
     def total_entries(self):
