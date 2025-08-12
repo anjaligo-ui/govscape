@@ -147,7 +147,7 @@ class CLIPEmbeddingModel(EmbeddingModel):
         input_batch = processor(images=images, return_tensors="pt", input_data_format="channels_last")
         return input_batch
 
-    def encode_images(self, jpg_paths, max_batch_size=1024):
+    def encode_images(self, jpg_paths, max_batch_size=256):
         gpu_count = torch.cuda.device_count()
 
         image_processor = CLIPImageProcessor.from_pretrained("openai/clip-vit-base-patch32", use_fast=True)  # online
