@@ -159,7 +159,7 @@ if __name__ == '__main__':
 
         # get the pdf files from s3
         pages_processed = 0
-        pages_per_batch = math.floor(NUM_PAGES_TO_PROCESS / BATCH_SIZE * 1000)
+        pages_per_batch = math.floor(BATCH_SIZE / 1000)
         while pages_processed < NUM_PAGES_TO_PROCESS:
 
             print('*****************************************************************************************************')
@@ -193,7 +193,7 @@ if __name__ == '__main__':
             # If we didn't get a full set of embedding files,
             if finished:
                 break
-            
+
             pages_processed += pages_per_batch
         
         # After all batches are processed, clean up the directories
