@@ -135,7 +135,7 @@ class FAISSIndex(AbstractVectorIndex):
         if self.faiss_index is None:
             self.d = embeddings.shape[1]        
             coarse_quantizer = faiss.IndexFlatL2(self.d)
-            self.faiss_index = faiss.IndexIVFPQ(coarse_quantizer, self.d, 8192, self.d/4, 8)
+            self.faiss_index = faiss.IndexIVFPQ(coarse_quantizer, self.d, 8192, int(self.d/4), 8)
             self.faiss_index.train(embeddings)
             self.faiss_index.nprobe = 32
         
