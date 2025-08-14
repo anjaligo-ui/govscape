@@ -168,7 +168,7 @@ if __name__ == '__main__':
             pipeline_times['list'] += time.time() - time_list
             successful_downloads = []
             time_download = time.time()
-            n_workers = 32
+            n_workers = 96
             worker_batches = np.array_split(embedding_files, n_workers)  # Split the batch into 32 smaller batches for parallel downloading
 
             with ProcessPoolExecutor(max_workers=n_workers) as executor:
