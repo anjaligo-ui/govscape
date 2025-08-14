@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # FIELDS TO SET **************************************************************************************
     parser = argparse.ArgumentParser(description="S3 EC2 Embedding Pipeline")
     parser.add_argument('--num_pages_to_process', type=int, default=100, help='Number of pages to process from S3')
-    parser.add_argument('--batch_size', type=int, default=1000000, help='Number of pages to process at a time')
+    parser.add_argument('--batch_size', type=int, default=250000, help='Number of pages to process at a time')
     parser.add_argument('--bucket_name', type=str, help='S3 Bucket Name')
     parser.add_argument('--in_data_dir', type=str, help='S3 Directory for input data')
     parser.add_argument('--embedding_prefix', type=str, help='S3 Prefix for embedding files')
@@ -116,6 +116,7 @@ if __name__ == '__main__':
             names.append(os.path.basename(os.path.dirname(embedding_file_path)))
             pages.append(embedding_file_path.replace(".npy", "").rpartition('_')[2])
             embeddings.append(np.load(embedding_file_path))
+        embeddings = np.asarray(embeddings)
         index.add_batch(embeddings, names, pages)
         index.save_index()
 
