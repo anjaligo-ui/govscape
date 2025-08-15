@@ -11,6 +11,9 @@ import sys
 from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
+from whoosh.filedb.filestore import FileStorage
+from whoosh.index import EmptyIndexError
+
 
 # Avoid annoying output from faiss during import
 @contextlib.contextmanager
@@ -257,7 +260,8 @@ class WhooshIndex(AbstractKeywordIndex):
 
     def load_index(self):
         if os.path.exists(self.index_keyword_directory):
-            self.index = open_dir(self.index_keyword_directory)
+            storage = FileStorage(self.index_keyword_directory, supports_mmap=False)
+            self.index = storage.open_index()
         else:
             self.build_index()
     
