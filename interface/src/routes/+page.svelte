@@ -7,12 +7,12 @@
   import TypingEffect from '$lib/components/TypingEffect.svelte';
 
   const govDomains = [
-    'riversideca.gov',
-    'tennille-ga.gov',
-    'alabama.gov',
-    'govinfo.gov',
+    'epa.gov',
+    'nsa.gov',
+    'usda.gov',
     'sec.gov',
-    'gpo.gov'
+    'gpo.gov',
+    'archives.gov',
   ];
 
   let showPreview = false;
@@ -48,9 +48,9 @@
   <div class="title-container {isSmallScreen ? 'small-screen' : ''}">
     <h1>
       {#if isSmallScreen}
-        Search 1+ Million PDFs across <TypingEffect words={govDomains} />
+        Search 1+ Million PDFs across <br /> <TypingEffect words={govDomains} />
       {:else}
-        Search 1+ Million PDFs<br />across <TypingEffect words={govDomains} />
+        Search 1+ Million PDFs across <TypingEffect words={govDomains} />
       {/if}
     </h1>
   </div>
