@@ -78,7 +78,7 @@
       // Create a temporary link to trigger download
       const a = document.createElement('a');
       a.href = url;
-      a.download = pdfData.id.split('/').pop() || 'document.pdf';
+      a.download = pdfData.id.split('/').pop() + '.pdf' || 'document.pdf';
       document.body.appendChild(a);
       a.click();
       a.remove();
