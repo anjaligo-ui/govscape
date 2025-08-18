@@ -278,13 +278,20 @@
     gap: calc(var(--preview-spacing-unit) * 1.5);
     height: 100%;
   }
-
   .preview-details {
     font-size: 0.9rem;
     color: var(--text-color-primary);
     padding: var(--preview-spacing-unit) calc(var(--preview-spacing-unit) * 1.25);
     border-radius: var(--preview-border-radius);
     border: 1px solid var(--preview-border-color);
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    word-break: break-word;
+  }
+  .preview-details a {
+    overflow-wrap: anywhere;
+    word-wrap: break-word;
+    word-break: break-word;
   }
   .preview-details div {
     margin-bottom: calc(var(--preview-spacing-unit) * 0.5);
