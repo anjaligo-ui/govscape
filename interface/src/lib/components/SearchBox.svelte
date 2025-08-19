@@ -346,4 +346,17 @@
     background: var(--color-secondary);
     box-shadow: 0 0 2px rgba(32, 33, 36, 0.3);
   }
+
+  @media (max-width: 767px) {
+    .search-container {
+      width: 90vw;
+      min-width: unset;
+    }
+
+    .search-mode-tabs button {
+      min-width: unset;
+      font-size: 0.7rem;
+      padding: 6px 12px;
+    }
+  }
 </style>
