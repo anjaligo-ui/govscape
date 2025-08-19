@@ -1,7 +1,7 @@
 server {
 	server_name govscape.net www.govscape.net;
 
-	root /var/www/govscape/interface/build;
+	root /home/ubuntu/govscape/interface/build;
 	index index.html;
 
 	# Redirect all www requests to non-www requests
