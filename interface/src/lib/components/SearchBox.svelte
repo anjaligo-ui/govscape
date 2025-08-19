@@ -12,7 +12,7 @@
     keyword: ['covid-19', 'social security', 'FAFSA']
   };
   const searchModes = [
-    { id: 'textual', label: 'Textual Search', placeholder: 'Search PDFs with context-rich text search...' },
+    { id: 'textual', label: 'Semantic Text Search', placeholder: 'Search PDFs with context-rich text search...' },
     { id: 'visual', label: 'Visual Search', placeholder: 'Search PDFs using image semantics...' },
     { id: 'keyword', label: 'Keyword Search', placeholder: 'Enter keywords for search...' },
   ];
@@ -256,7 +256,7 @@
 
   .search-mode-tabs button {
     position: relative;
-    min-width: 125px;
+    min-width: 150px;
     flex: 1 1 0;
     border: none;
     background: transparent;
