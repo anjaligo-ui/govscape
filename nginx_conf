@@ -4,7 +4,7 @@ server {
 	root /var/www/govscape;
 	index index.html;
 
-	# Redirect all HTTP requests to HTTPS
+	# Redirect all www requests to non-www requests
 	if ($host = www.govscape.net) {
 		return 301 https://govscape.net$request_uri;
 	}
