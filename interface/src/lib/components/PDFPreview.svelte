@@ -238,7 +238,7 @@
     display: block;
     width: 100%;
     height: auto;
-    max-height: 70vh;
+    max-height: 70%;
     object-fit: contain;
   }
 
@@ -376,7 +376,7 @@
 
     .modal-content {
       width: 95%;
-      max-height: 90vh;
+      max-height: 90%;
     }
   }
 </style>
