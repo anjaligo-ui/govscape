@@ -1,12 +1,12 @@
 server {
-	server_name govscape.net www.govscape.net;
+	server_name govscape-anonymized.net www.govscape-anonymized.net;
 
 	root /home/ubuntu/govscape/interface/build;
 	index index.html;
 
 	# Redirect all www requests to non-www requests
-	if ($host = www.govscape.net) {
-		return 301 https://govscape.net$request_uri;
+	if ($host = www.govscape-anonymized.net) {
+		return 301 https://govscape-anonymized.net$request_uri;
 	}
 
 	# Serve static frontend files
@@ -30,26 +30,25 @@ server {
 
 	listen 443 ssl; # HTTPS port
 
-	# SSL configuration (managed by Certbot)
-	ssl_certificate /etc/letsencrypt/live/govscape.net/fullchain.pem;
-	ssl_certificate_key /etc/letsencrypt/live/govscape.net/privkey.pem;
-	include /etc/letsencrypt/options-ssl-nginx.conf;
-	ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+	ssl_certificate /etc/letsencrypt/live/govscape-anonymized.net/fullchain.pem; # managed by Certbot
+	ssl_certificate_key /etc/letsencrypt/live/govscape-anonymized.net/privkey.pem; # managed by Certbot
+	include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+	ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 }
 
 # HTTP server block: redirect to HTTPS
 server {
 	listen 80;
-	server_name govscape.net www.govscape.net;
+	server_name govscape-anonymized.net www.govscape-anonymized.net;
 
-	# Redirect all HTTP requests to HTTPS
-	if ($host = www.govscape.net) {
-		return 301 https://govscape.net$request_uri;
-	}
+	if ($host = www.govscape-anonymized.net) {
+			return 301 https://$host$request_uri;
+	} # managed by Certbot
 
-	if ($host = govscape.net) {
-		return 301 https://$host$request_uri;
-	}
+
+	if ($host = govscape-anonymized.net) {
+			return 301 https://$host$request_uri;
+	} # managed by Certbot
 
 	return 404; # fallback
 }

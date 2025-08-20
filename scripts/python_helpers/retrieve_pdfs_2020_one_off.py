@@ -35,7 +35,7 @@ def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_director
         length = int(file_batch.iloc[i]['length'])
         offset = int(file_batch.iloc[i]['offset'])
         s3_url = f'https://eotarchive.s3.amazonaws.com/{filename}'
-        myagent = 'govscape/0.1 (PDF Retrieval Script; kdeeds@cs.washington.edu)'
+        myagent = 'govscape/0.1 (PDF Retrieval Script)'
         byte_range = f'bytes={offset}-{offset + length - 1}'
         object_exists = False
 

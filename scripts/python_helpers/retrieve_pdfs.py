@@ -32,7 +32,7 @@ def retrieve_and_store_pdfs(pdf_warc_files, local_dir, output_bucket_name, outpu
     start_time = time.time()
     for filename in pdf_warc_files:
         s3_url = f'https://eotarchive.s3.amazonaws.com/{filename}'
-        myagent = 'govscape/0.1 (PDF Retrieval Script; kdeeds@cs.washington.edu)'
+        myagent = 'govscape/0.1 (PDF Retrieval Script)'
 
         try:
         # Send the HTTP GET request to the S3 URL with the specified byte range

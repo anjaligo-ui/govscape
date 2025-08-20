@@ -2,7 +2,7 @@
 name = "govscape"
 version = "0.1.0"
 description = ""
-authors = ["kylebd99 <kdeeds@cs.washington.edu>"]
+authors = []
 readme = "README.md"
 
 
