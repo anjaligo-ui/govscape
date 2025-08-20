@@ -6,7 +6,7 @@ const ENDPOINTS = {
     S3: 'http://localhost:8080/img'
   },
   PROD: {
-    API: 'https://govscape.net/api',
+    API: 'https://govscape-anonymized.net/api',
     S3: 'https://bcgl-public-bucket.s3.amazonaws.com/prod-serving/img'
   }
 };
