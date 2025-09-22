@@ -5,15 +5,6 @@ from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 import subprocess
 
-########### CURRENTLY NOT USED (INSTEAD USING s5cmd) ###########
-
-def download_file(s3_client, bucket_name, s3_path, local_path):
-    try:
-        s3_client.download_file(bucket_name, s3_path, local_path)
-        return True
-    except Exception as e:
-        print(f"Error downloading {s3_path}: {str(e)}")
-        return False
 
 def download_from_s3(bucket_name, prefix, local_dir, max_workers=10):
     s3_client = boto3.client('s3')

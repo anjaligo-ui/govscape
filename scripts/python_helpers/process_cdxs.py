@@ -20,9 +20,9 @@ class CDXProcessor:
     def get_cdx_file_handle(self):
         cdx_path = self.cdx_file_paths[self.cdx_file_idx]
         s3 = boto3.client('s3')
-        local_cdx_path = os.path.join(self.output_dir, f'cdx_data_{self.processor_id}_{self.cdx_file_idx}.gz')
-        s3.download_file(self.bucket_name, cdx_path, local_cdx_path)
-        self.file_handle = gzip.open(local_cdx_path, 'rb')
+        self.local_cdx_path = os.path.join(self.output_dir, f'cdx_data_{self.processor_id}_{self.cdx_file_idx}.gz')
+        s3.download_file(self.bucket_name, cdx_path, self.local_cdx_path)
+        self.file_handle = gzip.open(self.local_cdx_path, 'rb')
         return self.file_handle
 
     def get_next_pdf_entry(self):
@@ -32,6 +32,7 @@ class CDXProcessor:
             if not cdx_line:
                 if self.cdx_file_idx < len(self.cdx_file_paths) - 1:
                     self.cdx_file_idx += 1
+                    self.close_file_handle()
                     self.get_cdx_file_handle()
                 else:
                     return None
@@ -50,8 +51,9 @@ class CDXProcessor:
                 }
         return pdf_entry
 
-    def close(self):
+    def close_file_handle(self):
         self.file_handle.close()
+        os.remove(self.local_cdx_path)
 
 def process_cdx_batch(args):
     bucket, cdx_file_paths, processor_id, output_dir = args
@@ -62,7 +64,7 @@ def process_cdx_batch(args):
         if not pdf_entry:
             break
         entries.append(pdf_entry)
-    processor.close()
+    processor.close_file_handle()
     return entries
 
 def main():
@@ -70,7 +72,7 @@ def main():
     parser.add_argument('--bucket', required=True, help='S3 bucket name')
     parser.add_argument('--cdx_file_paths', required=True, help='File containing paths to CDX files in S3')
     parser.add_argument('--output_dir', required=True, help='Directory to save output files')
-    parser.add_argument('--num_workers', type=int, default=cpu_count(), help='Number of parallel workers')
+    parser.add_argument('--num_workers', type=int, default=2*cpu_count(), help='Number of parallel workers')
     args = parser.parse_args()
 
     # Read all CDX file paths
@@ -91,6 +93,7 @@ def main():
     parquet_path = os.path.join(args.output_dir, "pdf_metadata.parquet")
     df = pd.DataFrame(all_entries)
     df.to_parquet(parquet_path, index=False)
+    
     # Compute unique 'filename' values and save to a separate parquet file
     unique_filenames = df['filename'].dropna().unique()
     filenames_df = pd.DataFrame({'filename': unique_filenames})
