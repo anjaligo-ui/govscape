@@ -1,12 +1,33 @@
 import os
 import argparse
+from urllib.parse import urlparse
 import boto3
+from govscape.indexing import SQLiteMetadataIndex
 import warcio
 import json
 import re
 import gzip
 import pandas as pd
 from multiprocessing import Pool, Manager, cpu_count
+import re
+
+def extract_date_from_crawl_string(crawl_string):
+    """
+    Extract the date string (YYYYMMDD format) from a crawl data string.
+    
+    Args:
+        crawl_string (str): String like "crawl-data/EOT-2020/segments/IA-000/warc/EOT20-20201009165744-crawl812_EOT20-20201009165744-00001.warc.gz"
+    
+    Returns:
+        str: Date string in YYYYMMDD format (e.g., "20201009") or None if not found
+    """
+    # Pattern to match 8 digits representing a date (YYYYMMDD)
+    pattern = r'(\d{8})'
+    
+    match = re.search(pattern, crawl_string)
+    if match:
+        return match.group(1)
+    return None
 
 class CDXProcessor:
     def __init__(self, bucket_name, cdx_file_paths, processor_id, output_dir):
@@ -45,6 +66,7 @@ class CDXProcessor:
                 pdf_entry = {
                     'url': data.get('url'),
                     'filename': data.get('filename'),
+                    'crawl_date': extract_date_from_crawl_string(data.get('filename')),
                     'digest': data.get('digest'),
                     'offset': data.get('offset'),
                     'length': data.get('length'),
@@ -67,14 +89,25 @@ def process_cdx_batch(args):
     processor.close_file_handle()
     return entries
 
+def extract_subdomain(url):
+    parsed = urlparse(url)
+    hostname = parsed.hostname
+    if hostname is None:
+        return None
+    parts = hostname.split('.')
+    if len(parts) >= 2:
+        return '.'.join(parts[-2:])
+    return hostname
+
 def main():
     parser = argparse.ArgumentParser(description='Process CDX files from S3.')
     parser.add_argument('--bucket', required=True, help='S3 bucket name')
     parser.add_argument('--cdx_file_paths', required=True, help='File containing paths to CDX files in S3')
     parser.add_argument('--output_dir', required=True, help='Directory to save output files')
+    parser.add_argument('--output_prefix', required=True, help='Prefix for output')
     parser.add_argument('--num_workers', type=int, default=2*cpu_count(), help='Number of parallel workers')
     args = parser.parse_args()
-
+     
     # Read all CDX file paths
     with open(args.cdx_file_paths, 'r') as f:
         cdx_file_paths = [line.strip() for line in f if ".gz" in line.strip()]
@@ -93,13 +126,43 @@ def main():
     parquet_path = os.path.join(args.output_dir, "pdf_metadata.parquet")
     df = pd.DataFrame(all_entries)
     df.to_parquet(parquet_path, index=False)
-    
+
     # Compute unique 'filename' values and save to a separate parquet file
     unique_filenames = df['filename'].dropna().unique()
     filenames_df = pd.DataFrame({'filename': unique_filenames})
     filenames_parquet_path = os.path.join(args.output_dir, "pdf_warc_files.parquet")
     filenames_df.to_parquet(filenames_parquet_path, index=False)
+    
+    print("Reading CDX data")
+    df = pd.read_parquet('data/cdx_dir/pdf_metadata.parquet')
+    sqlite_path = os.path.join(args.output_dir, "index_metadata")
+    index = SQLiteMetadataIndex(sqlite_path)
+    
+    print("Building Index")
+    assert args.output_prefix[-1] != '/'
+    index.build_index()
+    cur_batch = []
+    rows_added = 0
+    for _, row in df.iterrows():
+        cur_batch.append({
+            'url': row['url'],
+            'crawl_date': row['crawl_date'],
+            'pdf_name': row['digest'],
+            'sub_domain': extract_subdomain(row['url']),
+            's3_url': f"https://bcgl-public-bucket.s3.amazonaws.com/{args.output_prefix}/PDFs/{row['digest']}.pdf"
+        })
+        if len(cur_batch) >= 1000:
+            index.add_batch(cur_batch)
+            rows_added += len(cur_batch)
+            print(f"Added {rows_added} rows to index")
+            cur_batch = []
+    
+    print("Saving Index")
+    index.save_index()
 
+    print("Uploading Index")
+    s3 = boto3.client('s3')
+    s3.upload_file(os.path.join(sqlite_path, 'metadata.db'), args.bucket,  os.path.join(args.output_prefix, "metadata"))
 
 main()
 

@@ -39,6 +39,6 @@ def main():    # Initialize the SQLite metadata index
     print("Built Index")
     index.save_index()
     s3 = boto3.client('s3')
-    s3.upload_file('data/index_metadata/metadata.db', 'bcgl-public-bucket', 'prod-serving/index_metadata/metadata.db')
+    s3.upload_file('data/index_metadata/metadata.db', 'bcgl-public-bucket', 'archive/2020/cdx_metadata/metadata.db')
     
 main()

@@ -1,3 +1,4 @@
+import argparse
 import os
 from warcio.archiveiterator import ArchiveIterator
 import subprocess
@@ -10,22 +11,29 @@ import time
 import io 
 
 def main():
-    df = pd.read_parquet('data/cdx_dir/pdf_metadata.parquet')
+    parser = argparse.ArgumentParser(description='Retrieve PDFs from S3 & store them.')
+    parser.add_argument('--bucket', required=True, help='S3 bucket name')
+    parser.add_argument('--cdx_parquet', required=True, help='File containing paths to CDX files in S3')
+    parser.add_argument('--output_dir', required=True, help='Directory to save output files')
+    args = parser.parse_args()
+
+    df = pd.read_parquet(args.cdx_parquet)
     output_bucket_name = 'bcgl-public-bucket'
-    output_directory_base = 'archive/2008/PDFs'
-    num_processes = 1 #multiprocessing.cpu_count() * 5
+    output_directory_base = args.output_dir
+    num_processes = multiprocessing.cpu_count() * 4
     batch_size = len(df) // num_processes + 1
     print(df)
     batches = [(df[i:i + batch_size], idx, output_bucket_name, output_directory_base, num_processes) for idx, i in enumerate(range(0, len(df), batch_size))]
+    df = None
     with multiprocessing.get_context('fork').Pool(processes=num_processes) as pool:
         pool.starmap(retrieve_and_store_pdfs, batches)
 
 def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_directory, num_processes):
     s3 = boto3.client('s3')
-    processed_pdfs = 0
+    valid_pdfs = 0
+    invalid_pdfs = 0
     start_time = time.time()
     for i in range(1, len(file_batch)):
-        print(file_batch.iloc[i])
         filename = file_batch.iloc[i]['filename']
         url = file_batch.iloc[i]['url']
         digest = file_batch.iloc[i]['digest']
@@ -35,47 +43,47 @@ def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_director
         myagent = 'govscape/0.1 (PDF Retrieval Script; kdeeds@cs.washington.edu)'
         byte_range = f'bytes={offset}-{offset + length - 1}'
         object_exists = False
-
-        if (idx == 0) and (processed_pdfs % 100 == num_processes):
-            print(f'Processed {processed_pdfs} PDFs in {time.time() - start_time:.4f} seconds')
-            pdf_per_second = processed_pdfs / (time.time() - start_time)
-            print(f'Time Remaining: {(len(file_batch)- i) * num_processes / pdf_per_second :.4f} seconds')
-            print(f'Time per PDF: {1 / pdf_per_second:.4f} seconds')
+        if ((valid_pdfs + invalid_pdfs) % 100 == 50):
+            print(f'Heartbeat: {idx}')
+            if idx == 0:
+                print(f'Processed {valid_pdfs} PDFs in {time.time() - start_time:.4f} seconds')
+                pdf_per_second = (valid_pdfs + invalid_pdfs) / (time.time() - start_time)
+                print(f'Time Remaining: {(len(file_batch)- i) / pdf_per_second :.4f} seconds')
+                print(f'Time per PDF: {1 / pdf_per_second:.4f} seconds')
         
         try:
             s3.head_object(Bucket=output_bucket_name, Key=os.path.join(output_directory, digest + '.pdf'))
             object_exists = True
         except Exception as e:
             pass  # Object does not exist, continue to download
-            
+
         if object_exists:
-           processed_pdfs += num_processes
+           invalid_pdfs += 1
            continue
         
         # Send the HTTP GET request to the S3 URL with the specified byte range
         try:
-            print(f"Fetching {s3_url} with range {byte_range}")
             response = requests.get(
                 s3_url,
                 headers={'user-agent': myagent, 'Range': byte_range},
                 stream=True
             )
             for record in ArchiveIterator(response.raw):
-                print("Retrieved record:", record.rec_headers)
                 if record.rec_type == 'response':
                     is_valid_pdf = (record.rec_headers.get('Content-Type') == 'application/pdf') or (".pdf" in record.rec_headers.get('WARC-Target-URI', ''))
                     if not is_valid_pdf:
+                        invalid_pdfs += 1
                         continue
-                    print("Storing PDF:", digest)
                     s3.put_object(
                         Bucket=output_bucket_name,
                         Key=os.path.join(output_directory, digest + '.pdf'),
                         Body=record.content_stream().read()
                     )
-                    processed_pdfs += num_processes
+                    valid_pdfs += 1
                         
         except Exception as e:
-            print(f"Error processing {filename}: {e}")
+            print(f"Error processing {filename}: {e} on Server: {idx}")
+            invalid_pdfs += 1
             continue
 
 if __name__ == "__main__":

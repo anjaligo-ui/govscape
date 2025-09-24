@@ -358,11 +358,9 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
                 url TEXT,
                 crawl_date TEXT,
                 pdf_name TEXT,
-                sub_domain TEXT
-            );
-            CREATE INDEX IF NOT EXISTS idx_pdf_name ON metadata (pdf_name);
-            CREATE INDEX IF NOT EXISTS idx_crawl_date ON metadata (crawl_date);
-            CREATE INDEX IF NOT EXISTS idx_sub_domain ON metadata (sub_domain);                
+                sub_domain TEXT,
+                page_count INTEGER
+            );                
         """)
         self.conn.commit()
 
@@ -371,11 +369,11 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
             self.conn = sqlite3.connect(self.db_path)
             self.cursor = self.conn.cursor()
         to_insert = [
-            (md.get("url", ""), md.get("crawl_date", ""), md.get("pdf_name", ""), md.get("sub_domain", ""))
+            (md.get("url", ""), md.get("crawl_date", ""), md.get("pdf_name", ""), md.get("sub_domain", ""), md.get("page_count", 0))
             for md in metadata_dicts
         ]
         self.cursor.executemany(
-            "INSERT INTO metadata (url, crawl_date, pdf_name, sub_domain) VALUES (?, ?, ?, ?)",
+            "INSERT INTO metadata (url, crawl_date, pdf_name, sub_domain, page_count) VALUES (?, ?, ?, ?, ?)",
             to_insert
         )
         self.conn.commit()
@@ -385,8 +383,18 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
         self.cursor = self.conn.cursor()
 
     def save_index(self):
-        if self.conn:
-            self.conn.commit()
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_pdf_name ON metadata (pdf_name);
+                            """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_crawl_date ON metadata (crawl_date);
+                            """)
+        self.cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sub_domain ON metadata (sub_domain);
+                            """)
+        self.conn.commit()
 
     def search(self, pdf_names, filter=None):
         placeholders = ",".join(f"'{name}'" for name in pdf_names)
