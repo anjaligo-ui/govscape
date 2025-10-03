@@ -130,6 +130,5 @@ def main():
     s3 = boto3.client('s3')
     s3.upload_file(parquet_path, args.bucket,  os.path.join(args.output_prefix, "metadata"))
 
-
 main()
 
