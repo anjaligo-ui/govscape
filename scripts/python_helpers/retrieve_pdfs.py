@@ -50,9 +50,10 @@ def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_director
                 pdf_per_second = (valid_pdfs + invalid_pdfs) / (time.time() - start_time)
                 print(f'Time Remaining: {(len(file_batch)- i) / pdf_per_second :.4f} seconds')
                 print(f'Time per PDF: {1 / pdf_per_second:.4f} seconds')
-        
-        try:
-            s3.head_object(Bucket=output_bucket_name, Key=os.path.join(output_directory, digest + '.pdf'))
+
+        output_digest = digest.replace("sha1:", "")
+        try:    
+            s3.head_object(Bucket=output_bucket_name, Key=os.path.join(output_directory, output_digest + '.pdf'))
             object_exists = True
         except Exception as e:
             pass  # Object does not exist, continue to download
@@ -76,7 +77,7 @@ def retrieve_and_store_pdfs(file_batch, idx, output_bucket_name, output_director
                         continue
                     s3.put_object(
                         Bucket=output_bucket_name,
-                        Key=os.path.join(output_directory, digest + '.pdf'),
+                        Key=os.path.join(output_directory, output_digest + '.pdf'),
                         Body=record.content_stream().read()
                     )
                     valid_pdfs += 1

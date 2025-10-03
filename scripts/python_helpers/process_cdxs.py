@@ -67,7 +67,7 @@ class CDXProcessor:
                     'url': data.get('url'),
                     'filename': data.get('filename'),
                     'crawl_date': extract_date_from_crawl_string(data.get('filename')),
-                    'digest': data.get('digest'),
+                    'digest': data.get('digest').replace("sha1:", ""),
                     'offset': data.get('offset'),
                     'length': data.get('length'),
                 }
