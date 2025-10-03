@@ -127,42 +127,9 @@ def main():
     df = pd.DataFrame(all_entries)
     df.to_parquet(parquet_path, index=False)
 
-    # Compute unique 'filename' values and save to a separate parquet file
-    unique_filenames = df['filename'].dropna().unique()
-    filenames_df = pd.DataFrame({'filename': unique_filenames})
-    filenames_parquet_path = os.path.join(args.output_dir, "pdf_warc_files.parquet")
-    filenames_df.to_parquet(filenames_parquet_path, index=False)
     s3 = boto3.client('s3')
     s3.upload_file(parquet_path, args.bucket,  os.path.join(args.output_prefix, "metadata"))
 
-    print("Reading CDX data")
-    df = pd.read_parquet('data/cdx_dir/pdf_metadata.parquet')
-    sqlite_path = os.path.join(args.output_dir, "index_metadata")
-    index = SQLiteMetadataIndex(sqlite_path)
-    
-    print("Building Index")
-    assert args.output_prefix[-1] != '/'
-    index.build_index()
-    cur_batch = []
-    rows_added = 0
-    for _, row in df.iterrows():
-        cur_batch.append({
-            'crawl_url': row['url'],
-            'crawl_date': row['crawl_date'],
-            'pdf_name': row['digest'],
-            'sub_domain': extract_subdomain(row['url']),
-            's3_url': f"https://bcgl-public-bucket.s3.amazonaws.com/{args.output_prefix}/PDFs/{row['digest']}.pdf"
-        })
-        if len(cur_batch) >= 1000:
-            index.add_batch(cur_batch)
-            rows_added += len(cur_batch)
-            print(f"Added {rows_added} rows to index")
-            cur_batch = []
-    
-    print("Saving Index")
-    index.save_index()
-
-    print("Uploading Index")
 
 main()
 
