@@ -20,7 +20,6 @@ def extract_subdomain(url):
     return hostname
 
 PROGRESS_PATH = "index_metadata_progress.json"
-NUM_PAGES_TO_PROCESS = 1
 BATCH_SIZE = 10000
 # gets metadata files from s3
 def list_metadata_files(s3, bucket_name, s3_metadata_prefix, num_pages=1):
@@ -36,7 +35,6 @@ def list_metadata_files(s3, bucket_name, s3_metadata_prefix, num_pages=1):
             result = s3.list_objects_v2(Bucket=bucket_name, Prefix=s3_metadata_prefix, ContinuationToken=continuation_token)
         else:
             result = s3.list_objects_v2(Bucket=bucket_name, Prefix=s3_metadata_prefix)
-        print(f"Retrieved {len(result.get('Contents', []))} files from S3")
         
         contents = result.get('Contents', [])
         metadata_keys = [obj['Key'] for obj in contents if obj['Key'].endswith('.json')]
@@ -86,12 +84,21 @@ def main():
     cdx_df = pd.read_parquet(local_parquet_path)
     cdx_df['digest'] = cdx_df['digest'].astype(str).str.replace("sha1:", "")
 
+    # Initialize the SQLite metadata index
+    db_path = f'{args.output_dir}/metadata.db'
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    index = SQLiteMetadataIndex(args.output_dir)
+
+    # Create the metadata table
+    index.build_index()
+    
     metadata_file_batches = [metadata_files[i:i + BATCH_SIZE] for i in range(0, len(metadata_files), BATCH_SIZE)]
     local_metadata_path = os.path.join(args.output_dir, 'metadata')
     os.makedirs(local_metadata_path, exist_ok=True)
     start_time = time.time()
     for i, metadata_file_batch in enumerate(metadata_file_batches):
-        download_batches = [metadata_file_batch[i:i + 1000] for i in range(0, len(metadata_file_batch), 1000)]
+        download_batches = [metadata_file_batch[i:i + 250] for i in range(0, len(metadata_file_batch), 250)]
         with multiprocessing.Pool(processes=64) as pool:
             pool.starmap(download_files_from_s3, [(bucket_name, download_batch, local_metadata_path) for download_batch in download_batches])
 
@@ -112,17 +119,10 @@ def main():
                 print(f"Error reading {filepath}: {e}")
 
         digest_to_pagecount = pd.DataFrame(rows, columns=['digest', 'num_pages'])
+        print(digest_to_pagecount)
+        print("Length Digest:", len(digest_to_pagecount), "Length CDX:", len(cdx_df))
         metadata_df = digest_to_pagecount.merge(cdx_df, on='digest')
 
-
-        # Initialize the SQLite metadata index
-        db_path = f'{args.output_dir}/metadata.db'
-        if os.path.exists(db_path):
-            os.remove(db_path)
-        index = SQLiteMetadataIndex(args.output_dir)
-
-        # Create the metadata table
-        index.build_index()
 
         print("Building Index")
         assert args.output_prefix[-1] != '/'

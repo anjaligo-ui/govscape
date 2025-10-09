@@ -21,8 +21,11 @@ def remove_sha1(bucket, sha1_keys):
     config = Config(max_pool_connections=50)
     s3 = boto3.client("s3", config=config)
     copied_properly = 0
+    deleted_properly = 0
     for sha1_key in sha1_keys:
         clean_key = sha1_key.replace('sha1:', '')
+        if (clean_key == sha1_key):
+            continue
         correctly_copied = False
         try:
             response = s3.copy_object(
@@ -37,10 +40,12 @@ def remove_sha1(bucket, sha1_keys):
         if correctly_copied:
             try:
                 s3.delete_object(Bucket=bucket, Key=sha1_key)
+                deleted_properly += 1
             except Exception as e:
                 print(f"Error deleting {sha1_key}: {e}")
 
-    print(f"Copied {copied_properly} files to clean directory.")
+    print(f"Copied {copied_properly} files to clean key.")
+    print(f"Deleted {deleted_properly} files from directory.")
     return sha1_keys
 
 if __name__ == '__main__':
@@ -105,11 +110,11 @@ if __name__ == '__main__':
         # result = s3.list_objects_v2(Bucket=bucket_name, Prefix=pdfs_dir)
         # # get list of pdf file names
         # pdf_files = [obj['Key'] for obj in result.get('Contents', []) if obj['Key'].endswith('.pdf')]  # note this only returns 1000
-
+        batch_size = 100
         overall_start_time = time.time()
-        for i in range(0, math.ceil(NUM_PAGES_TO_PROCESS / 1000)):
+        for i in range(0, math.ceil(NUM_PAGES_TO_PROCESS / batch_size)):
             # get the pdf files from s3
-            digests, is_finished = list_digests(1000)
+            digests, is_finished = list_digests(batch_size)
             print("Now starting with total number of PDF files: ", len(digests))
 
             for j in range(0, len(digests), BATCH_SIZE):
@@ -117,7 +122,7 @@ if __name__ == '__main__':
                 print("WE ARE ON BATCH: ", j)
                 print('*****************************************************************************************************')
                 batch = digests[j:j + BATCH_SIZE]
-                num_workers = 512
+                num_workers = 64
                 worker_batches = np.array_split(batch, num_workers)  # Split the batch into smaller batches for parallel downloading
                 local_batch = []
                 with ProcessPoolExecutor(max_workers=num_workers) as executor:
