@@ -183,30 +183,15 @@ class Server:
         if not pdf_id:
             return {"error": "Missing 'pdf_id' parameter"}, 400
 
-        metadata_path = os.path.join(self.metadata_directory, pdf_id, "metadata.json")
-        
-        if not os.path.exists(metadata_path):
-            return {"error": "Metadata not found"}, 404
-
-        with open(metadata_path, "r") as f:
-            meta = json.load(f)
-        num_pages = meta.get("num_pages")
-        if not num_pages:
-            return {"error": "Page number not found"}, 404
-
-        try:
-            num_pages = int(num_pages)
-        except Exception:
-            raise Exception(f"Invalid page number in metadata: {metadata_path}")
-
-        image_dir = os.path.join(self.image_directory, pdf_id)
-        images = [f"{image_dir}/{pdf_id}_{i}.jpeg" for i in range(num_pages)]
-
         md = (self.metadata_index.search([pdf_id]) or {})
         first = (md.get(pdf_id) or [{}])[0]
-        crawl_url = first.get("url", "")
+        crawl_url = first.get("crawl_url", "")
         crawl_date = first.get("crawl_date", "")
         sub_domain = first.get("sub_domain", "")
+        page_count = first.get("page_count", "")
+
+        image_dir = os.path.join(self.image_directory, pdf_id)
+        images = [f"{image_dir}/{pdf_id}_{i}.jpeg" for i in range(page_count)]
 
         return {
             "images": images,
