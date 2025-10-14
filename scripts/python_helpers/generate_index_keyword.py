@@ -109,7 +109,6 @@ if __name__ == '__main__':
             index = gs.WhooshKeywordIndex(index_keyword_directory)
         else:
             raise ValueError("index_type must be either 'LanceDB' or 'Whoosh'")
-        index.build_index()
         index.load_index()
         names = []
         pages = []

@@ -285,7 +285,6 @@ class LanceDBKeywordIndex(AbstractKeywordIndex):
     def search(self, query, k):
         if self.table is None:
             self.load_index()
-        print(query)
         if query[0] == '"' and query[-1] == '"':
             results = (
                 self.table.search(PhraseQuery(query, "text"), fts_columns="text", query_type="fts", vector_column_name='')
