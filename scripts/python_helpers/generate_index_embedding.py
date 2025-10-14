@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     # uploads dir of files to s3
     def upload_directory_to_s3(ec2_dir, s3_dir):
-        subprocess.run(f"/home/ubuntu/.local/bin/s5cmd --log error cp {ec2_dir} s3://{bucket_name}/{s3_dir}/".split())
+        subprocess.run(f"poetry run s5cmd --log error cp {ec2_dir} s3://{bucket_name}/{s3_dir}/".split())
 
     # processing the pdfs: running through embedding pipeline and uploading to s3
     def process_embedding_files(embedding_files):
@@ -176,7 +176,7 @@ if __name__ == '__main__':
                         file_names = future.result()
                         successful_downloads.extend(file_names)
                     except Exception as e:
-                        print(f"Error downloading {futures[future]}: {e}")
+                        print(f"Error downloading {future}: {e}")
             pipeline_times['download'] += time.time() - time_download
 
             process_embedding_files(successful_downloads)
