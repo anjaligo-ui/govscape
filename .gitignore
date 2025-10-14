@@ -16,4 +16,4 @@ Thumbs.db
 !.env.test
 scripts/__pycache__/*
 .pytest_cache
-.__pycache__
+.__pycache__/*
