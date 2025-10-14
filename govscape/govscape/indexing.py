@@ -10,6 +10,7 @@ import contextlib
 import sys
 import pyarrow as pa
 from lancedb import connect
+from lancedb.query import MatchQuery
 from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
@@ -272,8 +273,7 @@ class LanceDBKeywordIndex(AbstractKeywordIndex):
             self.table.add(rows)
 
     def save_index(self):
-        # LanceDB persists on write
-        pass
+        self.table.optimize()
 
     def load_index(self):
         self._connect()
@@ -286,7 +286,7 @@ class LanceDBKeywordIndex(AbstractKeywordIndex):
         if self.table is None:
             self.load_index()
         results = (
-            self.table.search(query, vector_column=None)
+            self.table.search(MatchQuery(query, "text", fuzziness=2), fts_columns="text", query_type="fts", vector_column_name='')
             .limit(k)
             .to_list()
         )
@@ -469,7 +469,7 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
 
     def search(self, pdf_names, filter=None):
         placeholders = ",".join(f"'{name}'" for name in pdf_names)
-        query = f"SELECT url, crawl_date, pdf_name, sub_domain, s3_url FROM metadata WHERE pdf_name IN ({placeholders})"
+        query = f"SELECT crawl_url, crawl_date, pdf_name, sub_domain, s3_url FROM metadata WHERE pdf_name IN ({placeholders})"
         if filter:
             for key, value in filter.items():
                 if key == 'subDomain' and value != None:
