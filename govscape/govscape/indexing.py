@@ -8,6 +8,8 @@ import pickle as pkl
 from abc import ABC, abstractmethod
 import contextlib
 import sys
+import pyarrow as pa
+from lancedb import connect
 from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
@@ -234,6 +236,70 @@ class AbstractKeywordIndex(ABC):
         """
         pass
 
+class LanceDBKeywordIndex(AbstractKeywordIndex):
+    def __init__(self, index_keyword_directory):
+        self.index_keyword_directory = index_keyword_directory
+        self.db = None
+        self.table = None
+        self.table_name = "keyword_index"
+
+    def _connect(self):
+        if self.db is None:
+            os.makedirs(self.index_keyword_directory, exist_ok=True)
+            self.db = connect(self.index_keyword_directory)
+
+    def build_index(self):
+        self._connect()
+        if self.table_name in self.db.table_names():
+            self.table = self.db.open_table(self.table_name)
+            return
+        schema = pa.schema([
+            pa.field("text", pa.string()),
+            pa.field("pdf_name", pa.string()),
+            pa.field("page", pa.int32()),
+        ])
+        self.table = self.db.create_table(self.table_name, schema=schema)
+        self.table.create_fts_index("text")
+
+    def add_batch(self, texts, pdf_names, pages):
+        if self.table is None:
+            self.build_index()
+        rows = [
+            {"text": text, "pdf_name": pdf, "page": int(page)}
+            for text, pdf, page in zip(texts, pdf_names, pages)
+        ]
+        if rows:
+            self.table.add(rows)
+
+    def save_index(self):
+        # LanceDB persists on write
+        pass
+
+    def load_index(self):
+        self._connect()
+        try:
+            self.table = self.db.open_table(self.table_name)
+        except FileNotFoundError:
+            self.build_index()
+
+    def search(self, query, k):
+        if self.table is None:
+            self.load_index()
+        results = (
+            self.table.search(query, vector_column=None)
+            .limit(k)
+            .to_list()
+        )
+        scores = [r.get("_score", 0.0) for r in results]
+        pdf_names = [r["pdf_name"] for r in results]
+        pages = [str(r["page"]) for r in results]
+        return scores, pdf_names, pages
+
+    def total_entries(self):
+        if self.table is None:
+            self.load_index()
+        return self.table.count_rows()
+
 class WhooshIndex(AbstractKeywordIndex):
     def __init__(self, index_keyword_directory):
         self.index_keyword_directory = index_keyword_directory
@@ -285,6 +351,7 @@ class WhooshIndex(AbstractKeywordIndex):
 
     def total_pages(self):
         return self.total_entries()
+
 
 
 class AbstractMetadataIndex(ABC):
