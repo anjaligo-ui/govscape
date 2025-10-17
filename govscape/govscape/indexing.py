@@ -307,6 +307,65 @@ class LanceDBKeywordIndex(AbstractKeywordIndex):
             self.load_index()
         return self.table.count_rows()
 
+class SQLiteKeywordIndex(AbstractKeywordIndex):
+    def __init__(self, index_keyword_directory):
+        self.index_keyword_directory = index_keyword_directory
+        self.db_path = os.path.join(self.index_keyword_directory, "fts_txt.db")
+        self.conn = None
+        self.cursor = None
+        self.index = None
+    
+    def build_index(self):
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+        self.cursor.execute("""
+            CREATE VIRTUAL TABLE IF NOT EXISTS fts_txt USING fts5 (text, pdf_name, page_count);                
+        """)
+        self.conn.commit()
+
+    def add_batch(self, texts, pdf_names, pages):
+        if self.conn is None:
+            self.load_index()
+        # perhaps change generate_index_keyword to build index first?
+        self.cursor.execute("""
+            SELECT name 
+            FROM sqlite_master 
+            WHERE type='table' AND name='fts_txt';
+        """)
+        exists = self.cursor.fetchone() is not None
+        if not exists:
+            self.build_index()
+        for text, pdf_name, page in zip(texts, pdf_names, pages):
+          self.cursor.execute("INSERT INTO fts_txt (text, pdf_name, page_count) VALUES (?, ?, ?)", [text, pdf_name, page])
+        self.conn.commit()
+
+    def load_index(self):
+        os.makedirs(self.index_keyword_directory, exist_ok=True)
+        self.conn = sqlite3.connect(self.db_path)
+        self.cursor = self.conn.cursor()
+
+    def save_index(self):
+        return
+
+    def search(self, query_vector, k):
+        self.load_index()
+        self.cursor.execute("SELECT *, rank FROM fts_txt WHERE fts_txt MATCH ? LIMIT ?", [query_vector, k]);
+        distances = []
+        pdf_names = []
+        pages = []
+        rows = self.cursor.fetchall()
+        for row in rows:
+            distances.append(row[3])
+            pdf_names.append(row[1])
+            pages.append(row[2])
+        return distances, pdf_names, pages    
+
+    def total_entries(self):
+        if self.conn is None:
+            self.load_index()
+        self.cursor.execute("SELECT COUNT(*) FROM fts_txt")
+        return self.cursor.fetchone()[0]
+
 class WhooshKeywordIndex(AbstractKeywordIndex):
     def __init__(self, index_keyword_directory):
         self.index_keyword_directory = index_keyword_directory

@@ -11,7 +11,7 @@ import time
 import math
 from .api import init_api
 from .filter import Filter
-from .indexing import DiskANNIndex, FAISSIndex, LanceDBKeywordIndex, WhooshKeywordIndex, SQLiteMetadataIndex
+from .indexing import DiskANNIndex, FAISSIndex, LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, SQLiteMetadataIndex
 
 # basic pipeline developed:
 # 1. accept a query until EOF detected
@@ -59,6 +59,8 @@ class Server:
 
         if self.keyword_index_type == 'LanceDB':
             self.keyword_index = LanceDBKeywordIndex(self.index_keyword_directory)
+        elif self.keyword_index_type == 'SQLite':
+            self.keyword_index = SQLiteKeywordIndex(self.index_keyword_directory)
         elif self.keyword_index_type == 'Whoosh':
             self.keyword_index = WhooshKeywordIndex(self.index_keyword_directory)
         else:
