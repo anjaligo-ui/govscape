@@ -316,6 +316,8 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         self.index = None
     
     def build_index(self):
+        if not os.path.exists(self.index_keyword_directory):
+            os.makedirs(self.index_keyword_directory)
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.cursor.execute("""
@@ -355,9 +357,9 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         pages = []
         rows = self.cursor.fetchall()
         for row in rows:
-            distances.append(row[3])
             pdf_names.append(row[1])
-            pages.append(row[2])
+            pages.append(str(row[2]))
+            distances.append(row[3])
         return distances, pdf_names, pages    
 
     def total_entries(self):

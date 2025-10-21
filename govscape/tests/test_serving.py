@@ -102,7 +102,7 @@ def server_fixture(tmp_path, monkeypatch):
     monkeypatch.setattr("govscape.server.FAISSIndex", DummyVectorIndex)
     monkeypatch.setattr("govscape.server.DiskANNIndex", DummyVectorIndex)
     monkeypatch.setattr("govscape.server.LanceDBKeywordIndex", DummyKeywordIndex)
-    monkeypatch.setattr("govscape.server.", DummyKeywordIndex)
+    monkeypatch.setattr("govscape.server.SQLiteKeywordIndex", DummyKeywordIndex)
     monkeypatch.setattr("govscape.server.WhooshKeywordIndex", DummyKeywordIndex)
     monkeypatch.setattr("govscape.server.SQLiteMetadataIndex", DummyMetadataIndex)
 
