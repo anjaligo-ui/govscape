@@ -279,7 +279,7 @@ class LanceDBKeywordIndex(AbstractKeywordIndex):
         self._connect()
         try:
             self.table = self.db.open_table(self.table_name)
-        except FileNotFoundError:
+        except Exception as e:
             self.build_index()
 
     def search(self, query, k):
