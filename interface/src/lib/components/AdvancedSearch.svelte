@@ -71,13 +71,13 @@
       maxPages: maxPages,
     });
 
-    updateURLWithFilters();
   }
 
   function handleFacetKeydown(event) {
     if (event.key === 'Enter') {
       event.preventDefault();
       applyFilters();
+      updateURLWithFilters();
     }
   }
 </script>
@@ -171,10 +171,21 @@
     color: var(--text-color-secondary, #888);
   }
 
-  @media (max-width: 767px) {
+  .date-range-row input {
+    width: 140px;      /* desired fixed width */
+    min-width: 80px;   /* don't shrink below this */
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 480px) {
     .date-range-row input {
-      flex: 1 1 120px;
-      min-width: 120px;
+      width: 100px;    /* smaller on narrow screens */
+    }
+  }
+
+  @media (max-width: 320px) {
+    .date-range-row input {
+      width: 80px;
     }
   }
 </style>

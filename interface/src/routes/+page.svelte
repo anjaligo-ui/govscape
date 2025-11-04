@@ -34,9 +34,9 @@
   <div class="title-container">
     <h1>
       {#if isSmallScreen}
-        Search 4.7 Million PDFs across<br /><TypingEffect words={govDomains} />
+        Search 10+ Million PDFs across<br /><TypingEffect words={govDomains} />
       {:else}
-        Search 4.7 Million PDFs across <TypingEffect words={govDomains} />
+        Search 10+ Million PDFs across <TypingEffect words={govDomains} />
       {/if}
     </h1>
   </div>
