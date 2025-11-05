@@ -353,12 +353,12 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
     def save_index(self):
         return
 
-    def _clean_query(self, query):
-        # Escape single quotes in the query
+    def _remove_hyphens(self, query):
+        # Remove hyphens from the query
         return query.replace("-", "")
     
     def search(self, query, k):
-        query = self._clean_query(query)
+        query = self._remove_hyphens(query)
         if not self.cursor:
             self.load_index()
         try:
@@ -366,11 +366,13 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         except sqlite3.ProgrammingError as e:
             self.load_index()
             self.cursor.execute(f'SELECT *, rank FROM fts_txt WHERE fts_txt MATCH \'{query}\' ORDER BY rank LIMIT {k}')
-        print(f'SELECT *, rank FROM fts_txt WHERE fts_txt MATCH \'{query}\' ORDER BY rank LIMIT {k}')
         distances = []
         pdf_names = []
         pages = []
-        rows = self.cursor.fetchall()
+        rows = self.cursor.execute(
+            "SELECT *, rank FROM fts_txt WHERE fts_txt MATCH ? ORDER BY rank LIMIT ?",
+            (query, k)
+        ).fetchall()
         for row in rows:
             pdf_names.append(row[1])
             pages.append(str(row[2]))

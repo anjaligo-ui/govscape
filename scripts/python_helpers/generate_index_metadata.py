@@ -8,6 +8,7 @@ import time
 import boto3
 import os
 import multiprocessing
+import shutil
 
 def extract_subdomain(url):
     parsed = urlparse(url)
@@ -92,7 +93,7 @@ def main():
     print("Initializing Index")
     # Initialize the SQLite metadata index
     db_path = f'{args.output_dir}/metadata.db'
-    s3.download_file('bcgl-public-bucket', f'{args.output_prefix}/metadata.db', db_path)
+    s3.download_file(bucket_name, f'{args.output_prefix}/metadata.db', db_path)
     index = SQLiteMetadataIndex(args.output_dir)
 
     # Create the metadata table
@@ -101,7 +102,7 @@ def main():
     files_processed = 0
     # get the pdf files from s3
     while not is_finished and files_processed < args.num_pages_to_process*1000:
-        continuation_token, is_finished, metadata_files = list_metadata_files(s3, bucket_name, s3_metadata_prefix, BATCH_SIZE/1000)
+        continuation_token, is_finished, metadata_files = list_metadata_files(s3, bucket_name, s3_metadata_prefix, int(BATCH_SIZE/1000))
         local_metadata_path = os.path.join(args.output_dir, 'metadata_files')
         os.makedirs(local_metadata_path, exist_ok=True)
         start_time = time.time()
@@ -151,6 +152,8 @@ def main():
                 cur_batch = []
         if len(cur_batch) > 0:
             index.add_batch(cur_batch)
+            rows_added += len(cur_batch)
+            print(f"Added {rows_added} rows to index")
         
         print("Uploading Index")
         s3.upload_file(db_path, bucket_name, f'{args.output_prefix}/metadata.db')
@@ -162,7 +165,7 @@ def main():
         print("Is Finished:", is_finished, "Files Processed", files_processed, "Total Time:", time.time() - start_time)
         try:
             if os.path.exists(local_metadata_path):
-                os.rmdir(local_metadata_path)
+                shutil.rmtree(local_metadata_path)
         except Exception as e:
             print(f"Failed to remove {local_metadata_path}: {e}")
     print("Saving Index")
