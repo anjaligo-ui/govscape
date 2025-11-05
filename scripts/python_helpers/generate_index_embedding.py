@@ -149,9 +149,12 @@ if __name__ == '__main__':
         # result = s3.list_objects_v2(Bucket=bucket_name, Prefix=pdfs_dir)
         # # get list of pdf file names
         # pdf_files = [obj['Key'] for obj in result.get('Contents', []) if obj['Key'].endswith('.pdf')]  # note this only returns 1000
-
         overall_start_time = time.time()
-
+        try:
+            s3.download_file(bucket_name, os.path.join(out_data_dir, os.path.basename(progress_path)), progress_path)
+        except Exception as e:
+            print(f"No existing progress file found. Starting fresh. {e}")
+            
         # get the pdf files from s3
         pages_processed = 0
         pages_per_batch = math.floor(BATCH_SIZE / 1000)
@@ -196,9 +199,10 @@ if __name__ == '__main__':
             try:
                 with open(progress_path, 'w') as f:
                     json.dump({'continuation_token': continuation_token}, f)
+                s3.upload_file(progress_path, bucket_name, os.path.join(out_data_dir, os.path.basename(progress_path))) 
             except Exception as e:
                 print(f"Error saving continuation token: {e}")
-        
+
         # After all batches are processed, clean up the directories
         if os.path.exists(embedding_directory):
             shutil.rmtree(embedding_directory)

@@ -8,6 +8,7 @@ import time
 import boto3
 import os
 import multiprocessing
+import shutil
 
 def extract_subdomain(url):
     parsed = urlparse(url)
@@ -20,7 +21,7 @@ def extract_subdomain(url):
     return hostname
 
 PROGRESS_PATH = "index_metadata_progress.json"
-BATCH_SIZE = 10000
+BATCH_SIZE = 100000
 # gets metadata files from s3
 def list_metadata_files(s3, bucket_name, s3_metadata_prefix, num_pages=1):
     metadata_files = []
@@ -44,7 +45,11 @@ def list_metadata_files(s3, bucket_name, s3_metadata_prefix, num_pages=1):
             continuation_token = result.get('NextContinuationToken')
             finished = False
 
-        if pages_retrieved >= num_pages or not result.get('IsTruncated'):
+        if pages_retrieved >= num_pages:
+            finished = False
+            break
+
+        if not result.get('IsTruncated'):
             finished = True
             break
     return continuation_token, finished, metadata_files
@@ -67,12 +72,13 @@ def main():
     parser.add_argument('--num_pages_to_process', type=int, default=100, help='Number of metadata files to process from S3')
     args = parser.parse_args()
     os.makedirs(args.output_dir, exist_ok=True)
-
     s3 = boto3.client('s3')
     bucket_name = args.bucket_name
     s3_metadata_prefix = args.metadata_prefix
-    # get the pdf files from s3
-    continuation_token, is_finished, metadata_files = list_metadata_files(s3, bucket_name, s3_metadata_prefix, args.num_pages_to_process)
+    try:
+        s3.download_file(bucket_name, f'{args.output_prefix}/{PROGRESS_PATH}.json', PROGRESS_PATH) 
+    except Exception as e:
+        print(e)
 
     # Download the CDX parquet file from S3
     print("Reading CDX data")
@@ -84,26 +90,30 @@ def main():
     cdx_df = pd.read_parquet(local_parquet_path)
     cdx_df['digest'] = cdx_df['digest'].astype(str).str.replace("sha1:", "")
 
+    print("Initializing Index")
     # Initialize the SQLite metadata index
     db_path = f'{args.output_dir}/metadata.db'
-    if os.path.exists(db_path):
-        os.remove(db_path)
+    s3.download_file(bucket_name, f'{args.output_prefix}/metadata.db', db_path)
     index = SQLiteMetadataIndex(args.output_dir)
 
     # Create the metadata table
     index.build_index()
-    
-    metadata_file_batches = [metadata_files[i:i + BATCH_SIZE] for i in range(0, len(metadata_files), BATCH_SIZE)]
-    local_metadata_path = os.path.join(args.output_dir, 'metadata')
-    os.makedirs(local_metadata_path, exist_ok=True)
-    start_time = time.time()
-    for i, metadata_file_batch in enumerate(metadata_file_batches):
-        download_batches = [metadata_file_batch[i:i + 250] for i in range(0, len(metadata_file_batch), 250)]
+    continuation_token, is_finished, metadata_files = None, False, []
+    files_processed = 0
+    # get the pdf files from s3
+    while not is_finished and files_processed < args.num_pages_to_process*1000:
+        continuation_token, is_finished, metadata_files = list_metadata_files(s3, bucket_name, s3_metadata_prefix, int(BATCH_SIZE/1000))
+        local_metadata_path = os.path.join(args.output_dir, 'metadata_files')
+        os.makedirs(local_metadata_path, exist_ok=True)
+        start_time = time.time()
+        print("Downloading Metadata Files from S3")
+        download_batches = [metadata_files[i:i + 250] for i in range(0, len(metadata_files), 250)]
         with multiprocessing.Pool(processes=64) as pool:
             pool.starmap(download_files_from_s3, [(bucket_name, download_batch, local_metadata_path) for download_batch in download_batches])
 
+        print("Adding Metadata to Index")
         rows = []
-        for metadata_file in metadata_file_batch:
+        for metadata_file in metadata_files:
             digest = os.path.dirname(metadata_file).split('/')[-1]
             filepath = os.path.join(local_metadata_path, digest, "metadata.json")
             try:
@@ -119,10 +129,7 @@ def main():
                 print(f"Error reading {filepath}: {e}")
 
         digest_to_pagecount = pd.DataFrame(rows, columns=['digest', 'num_pages'])
-        print(digest_to_pagecount)
-        print("Length Digest:", len(digest_to_pagecount), "Length CDX:", len(cdx_df))
         metadata_df = digest_to_pagecount.merge(cdx_df, on='digest')
-
 
         print("Building Index")
         assert args.output_prefix[-1] != '/'
@@ -143,15 +150,24 @@ def main():
                 rows_added += len(cur_batch)
                 print(f"Added {rows_added} rows to index")
                 cur_batch = []
+        if len(cur_batch) > 0:
+            index.add_batch(cur_batch)
+            rows_added += len(cur_batch)
+            print(f"Added {rows_added} rows to index")
         
         print("Uploading Index")
-        s3 = boto3.client('s3')
-        s3.upload_file(db_path, 'bcgl-public-bucket', f'{args.output_prefix}/metadata.db')
+        s3.upload_file(db_path, bucket_name, f'{args.output_prefix}/metadata.db')
 
         with open(PROGRESS_PATH, 'w') as f:
             json.dump({'continuation_token': continuation_token}, f)
-        print(f'Processed Batch {i+1} out of {len(metadata_file_batches)} in {time.time() - start_time:.2f} seconds')
-
+        s3.upload_file(PROGRESS_PATH, bucket_name, f'{args.output_prefix}/{PROGRESS_PATH}.json')
+        files_processed += len(metadata_files)
+        print("Is Finished:", is_finished, "Files Processed", files_processed, "Total Time:", time.time() - start_time)
+        try:
+            if os.path.exists(local_metadata_path):
+                shutil.rmtree(local_metadata_path)
+        except Exception as e:
+            print(f"Failed to remove {local_metadata_path}: {e}")
     print("Saving Index")
     index.save_index()
     

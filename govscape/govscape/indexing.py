@@ -15,7 +15,6 @@ from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
 from whoosh.filedb.filestore import FileStorage
-from whoosh.index import EmptyIndexError
 
 
 # Avoid annoying output from faiss during import
@@ -314,6 +313,7 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         self.conn = None
         self.cursor = None
         self.index = None
+        self._total_entries = -1
     
     def build_index(self):
         if not os.path.exists(self.index_keyword_directory):
@@ -337,6 +337,7 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         exists = self.cursor.fetchone() is not None
         if not exists:
             self.build_index()
+        self.cursor.execute("BEGIN TRANSACTION;")
         for text, pdf_name, page in zip(texts, pdf_names, pages):
           self.cursor.execute("INSERT INTO fts_txt (text, pdf_name, page_count) VALUES (?, ?, ?)", [text, pdf_name, page])
         self.conn.commit()
@@ -345,17 +346,33 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         os.makedirs(self.index_keyword_directory, exist_ok=True)
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
+        if self._total_entries == -1:
+            self.cursor.execute("SELECT MAX(ROWID) FROM fts_txt")
+            self._total_entries = self.cursor.fetchone()[0]
 
     def save_index(self):
         return
 
-    def search(self, query_vector, k):
-        self.load_index()
-        self.cursor.execute("SELECT *, rank FROM fts_txt WHERE fts_txt MATCH ? ORDER BY rank LIMIT ?", [query_vector, k]);
+    def _remove_hyphens(self, query):
+        # Remove hyphens from the query
+        return query.replace("-", "")
+    
+    def search(self, query, k):
+        query = self._remove_hyphens(query)
+        if not self.cursor:
+            self.load_index()
+        try:
+            self.cursor.execute(f'SELECT *, rank FROM fts_txt WHERE fts_txt MATCH \'{query}\' ORDER BY rank LIMIT {k}')
+        except sqlite3.ProgrammingError as e:
+            self.load_index()
+            self.cursor.execute(f'SELECT *, rank FROM fts_txt WHERE fts_txt MATCH \'{query}\' ORDER BY rank LIMIT {k}')
         distances = []
         pdf_names = []
         pages = []
-        rows = self.cursor.fetchall()
+        rows = self.cursor.execute(
+            "SELECT *, rank FROM fts_txt WHERE fts_txt MATCH ? ORDER BY rank LIMIT ?",
+            (query, k)
+        ).fetchall()
         for row in rows:
             pdf_names.append(row[1])
             pages.append(str(row[2]))
@@ -363,10 +380,9 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
         return distances, pdf_names, pages    
 
     def total_entries(self):
-        if self.conn is None:
+        if self._total_entries == -1:
             self.load_index()
-        self.cursor.execute("SELECT COUNT(*) FROM fts_txt")
-        return self.cursor.fetchone()[0]
+        return self._total_entries
 
 class WhooshKeywordIndex(AbstractKeywordIndex):
     def __init__(self, index_keyword_directory):
@@ -481,6 +497,7 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
         self.db_path = os.path.join(self.index_metadata_directory, "metadata.db")
         self.conn = None
         self.cursor = None
+        self._total_entries = -1
 
     def build_index(self):
         if not os.path.exists(self.index_metadata_directory):
@@ -520,6 +537,9 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
     def load_index(self):
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
+        if self._total_entries == -1:
+            self.cursor.execute("SELECT MAX(ROWID) FROM metadata")
+            self._total_entries = self.cursor.fetchone()[0]
 
     def save_index(self):
         self.conn = sqlite3.connect(self.db_path)
@@ -570,7 +590,6 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
         return metadata
 
     def total_entries(self):
-        if self.conn is None:
+        if self._total_entries == -1:
             self.load_index()
-        self.cursor.execute("SELECT COUNT(*) FROM metadata")
-        return self.cursor.fetchone()[0]
+        return self._total_entries
