@@ -13,7 +13,7 @@
         What is GovScape, and how does it work?
       </summary>
       <div class="content">
-        <p>GovScape is a collaboration between the University of Washington, Boston University, along with a number of other institutions. GovScape currently supports multimodal search over 10 million PDFs (~60 million PDF pages) within the End of Term Web Archive's 2020 crawl. GovScape supports 3 forms of searching over these PDFs:</p>
+        <p>GovScape is a collaboration between the University of Washington and Boston University, along with a number of other institutions, and is led by <a href="https://www.bcglee.com/" target="_blank" rel="noopener noreferrer">Ben Lee</a> and <a href="https://kylebd99.github.io/kyle.deeds.github.io/" target="_blank" rel="noopener noreferrer">Kyle Deeds</a>. The full project team can be found below. GovScape currently supports multimodal search over 10+ million PDFs (70+ million PDF pages) within the End of Term Web Archive's 2020 crawl (all renderable PDFs of length 50 pages or fewer). GovScape supports 3 forms of searching over these PDFs:</p>
         <ul>
           <li>
             <strong>"keyword search," or exact text search:</strong> this form of search is canonical keyword search over document text, i.e., basic keyword search.
@@ -26,13 +26,13 @@
           </li>
         </ul>
         <p>
-          All three of these search methods can be combined with <strong>metadata filtering</strong> according to <strong>subdomain</strong> and <strong>crawl date</strong>, available by clicking the filter button just to the left of the magnifying glass (which executes the search).
+          All three of these search methods can be combined with <strong>metadata filtering</strong> according to <strong>domain</strong> and <strong>crawl date</strong>, available by clicking the filter button just to the left of the magnifying glass (which executes the search).
         </p>
         <p>
           While <strong>"keyword search"</strong> filters search results based on the presence of the search string, <strong>"semantic text search"</strong> and <strong>"visual search"</strong> only re-ranks search results (all PDFs meeting the criteria in the metadata filters will be returned).
         </p>
         <p class="note">
-          In future versions of GovScape, we plan to support searching the PDFs across the End of Term Web Archive, including the 2024 crawl when it is released.
+          In future versions of GovScape, we plan to support searching the PDFs across the End of Term Web Archive, including the 2024 crawl when it is fully uploaded and released.
         </p>
         <p>You can learn more about GovScape in our paper available here: [forthcoming].</p>
       </div>
