@@ -18,6 +18,9 @@
   $: pageSize = $searchStore.pageSize;
   $: totalCount = $searchStore.totalCount;
   $: totalPages = $searchStore.totalPages;
+  $: error = $searchStore.error;
+  $: startIndex = ((currentPage - 1) * pageSize) + 1;
+  $: endIndex = ((currentPage - 1) * pageSize) + results.length;
 
   onMount(() => {
     if (!gridElement) return;
@@ -93,25 +96,22 @@
 {/if}
 
 <div class="grid-container">
+  {#if error}
+  <div class="error-banner" role="alert" aria-live="polite">
+    {error}
+  </div>
+  {/if}
   {#if results.length > 0}
   <div class="results-summary">
     <div class="summary-card">
       <div class="page-info">
         Page <span class="page-number">{currentPage.toLocaleString()}</span>
-        {#if totalPages}
-        of <span class="page-number">{totalPages.toLocaleString()}</span>
-        {/if}
       </div>
-      {#if totalCount}
       <div class="results-info">
         <span class="results-range">
-          {((currentPage - 1) * pageSize) + 1} – {Math.min(((currentPage - 1) * pageSize) + pageSize, totalCount)}
-        </span>
-        of
-        <span class="total-results">{totalCount.toLocaleString()}</span>
-        Results
+          {startIndex} – {endIndex}
+        </span>PDFs
       </div>
-      {/if}
     </div>
   </div>
   {/if}
@@ -146,9 +146,6 @@
     <span>
       Page
       <span class="page-number">{currentPage.toLocaleString()}</span>
-      {#if totalPages}
-      of <span class="page-number">{totalPages.toLocaleString()}</span>
-      {/if}
     </span>
     <button on:click={nextPage} disabled={loading || !hasMore} aria-label="Next Page">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -284,6 +281,17 @@
     margin: 0 0 1.25rem 0;
   }
 
+  .error-banner {
+    margin: 0 0 1rem 0;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #ffecec;
+    color: #b00020;
+    border: 1px solid #ffcccc;
+    font-family: var(--sans-serif-font);
+    text-align: center;
+  }
+
   .summary-card {
     display: flex;
     align-items: center;
@@ -307,6 +315,10 @@
   .results-summary .total-results {
     color: var(--text-color-primary);
     font-weight: 500;
+  }
+
+  .results-summary .results-range {
+    margin-right: 6px;
   }
 
   .results-info {

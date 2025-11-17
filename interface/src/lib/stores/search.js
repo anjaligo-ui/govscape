@@ -123,7 +123,7 @@ export const searchActions = {
       console.error('Search error in store:', err);
       searchStore.update(store => ({
         ...store,
-        error: err.message || 'Search failed',
+        error: err?.message === 'Request timed out' ? 'Search timed out. Please try again or try a different search.' : (err.message || 'Search failed'),
         loading: false,
         results: [],
         hasMore: false,

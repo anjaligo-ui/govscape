@@ -1,5 +1,8 @@
 const IS_DEV = import.meta.env.DEV;
 
+// Default API request timeout (10 seconds)
+const DEFAULT_API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 10000);
+
 const ENDPOINTS = {
   DEV: {
     API: 'http://localhost:8080/api',
@@ -32,18 +35,34 @@ export async function apiFetch(endpoint, options = {}) {
         credentials: 'include',
     };
 
+    const {
+        timeoutMs = DEFAULT_API_TIMEOUT_MS,
+        signal: externalSignal,
+        ...restOptions
+    } = options || {};
+
     const mergedOptions = {
         ...defaultOptions,
-        ...options,
+        ...restOptions,
         headers: {
             ...defaultOptions.headers,
-            ...options.headers,
+            ...restOptions.headers,
         },
     };
 
     try {
         const apiUrl = getApiBaseUrl();
-        const response = await fetch(`${apiUrl}${endpoint}`, mergedOptions);
+        const controller = !externalSignal ? new AbortController() : null;
+        const timeoutId = !externalSignal
+            ? setTimeout(() => controller.abort(), Math.max(0, timeoutMs))
+            : null;
+
+        const response = await fetch(`${apiUrl}${endpoint}`, {
+            ...mergedOptions,
+            signal: externalSignal || (controller && controller.signal) || undefined,
+        });
+
+        if (timeoutId) clearTimeout(timeoutId);
 
         if (!response.ok) {
             const errorText = await response.text();
@@ -52,6 +71,9 @@ export async function apiFetch(endpoint, options = {}) {
 
         return await response.json();
     } catch (error) {
+        if (error?.name === 'AbortError') {
+            throw new Error('Request timed out');
+        }
         console.error('API request failed:', error);
         throw error;
     }

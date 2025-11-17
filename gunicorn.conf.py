@@ -20,5 +20,5 @@ loglevel = _get_env("GUNICORN_LOGLEVEL", "info")
 max_requests = int(_get_env("GUNICORN_MAX_REQUESTS", "1000"))
 max_requests_jitter = int(_get_env("GUNICORN_MAX_REQUESTS_JITTER", "100"))
 
-# Preload app: False by default because models are heavy; set True if we want faster worker boot
+# Because indexes/models loading is heavy, we set True here to fork the workers from the master
 preload_app = _get_env("GUNICORN_PRELOAD_APP", "true").lower() in ("1", "true", "yes")

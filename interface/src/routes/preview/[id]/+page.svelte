@@ -154,7 +154,7 @@
             <button class="carousel-nav prev" on:click={prevPage} disabled={currentPageIndex === 0} aria-label="Previous page">
               <i class="bi bi-chevron-left"></i>
             </button>
-            <span class="page-number">Page {currentPageIndex + 1} of {totalPages}</span>
+            <span class="page-number">Page {currentPageIndex + 1}</span>
             <button class="carousel-nav next" on:click={nextPage} disabled={currentPageIndex === totalPages - 1} aria-label="Next page">
               <i class="bi bi-chevron-right"></i>
             </button>

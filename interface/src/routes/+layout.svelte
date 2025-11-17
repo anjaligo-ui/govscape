@@ -1,6 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
+  import { assets } from '$app/paths';
   import CookieConsent from '$lib/components/CookieConsent.svelte';
   import { userTracker } from '$lib/utils/userTracking.js';
 
@@ -21,7 +22,7 @@
 <div class="app">
   <header>
     <a href="/" class="logo">
-      <img draggable="false" src="/logo.png" alt="GovScape Logo" class="logo-image" />
+      <img draggable="false" src={`${assets}/logo.png`} alt="GovScape Logo" class="logo-image" />
     </a>
     <nav>
       <a href="/faq">FAQ</a>

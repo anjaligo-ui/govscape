@@ -157,7 +157,7 @@
                 <i class="bi bi-chevron-left"></i>
               </button>
               <span class="page-number">
-                Page {currentPageIndex + 1} of {totalPages}
+                Page {currentPageIndex + 1}
               </span>
               <button class="carousel-nav next" on:click={nextPage} disabled={currentPageIndex === totalPages - 1}>
                 <i class="bi bi-chevron-right"></i>
