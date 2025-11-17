@@ -4,6 +4,8 @@
   import { searchStore, searchActions } from '$lib/stores/search';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import ChevronLeftIcon from './icons/ChevronLeftIcon.svelte';
+  import ChevronRightIcon from './icons/ChevronRightIcon.svelte';
 
   const dispatch = createEventDispatcher();
 
@@ -103,6 +105,9 @@
   {/if}
   {#if results.length > 0}
   <div class="results-summary">
+    <button class="pagination-button" on:click={prevPage} disabled={loading || currentPage <= 1} aria-label="Previous Page">
+      <ChevronLeftIcon />
+    </button>
     <div class="summary-card">
       <div class="page-info">
         Page <span class="page-number">{currentPage.toLocaleString()}</span>
@@ -113,6 +118,9 @@
         </span>PDFs
       </div>
     </div>
+    <button class="pagination-button" on:click={nextPage} disabled={loading || !hasMore} aria-label="Next Page">
+      <ChevronRightIcon />
+    </button>
   </div>
   {/if}
   
@@ -138,19 +146,15 @@
 
   {#if results.length > 0}
   <div class="pagination-container">
-    <button on:click={prevPage} disabled={loading || currentPage <= 1} aria-label="Previous Page">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"></polyline>
-      </svg>
+    <button class="pagination-button" on:click={prevPage} disabled={loading || currentPage <= 1} aria-label="Previous Page">
+      <ChevronLeftIcon />
     </button>
     <span>
       Page
       <span class="page-number">{currentPage.toLocaleString()}</span>
     </span>
-    <button on:click={nextPage} disabled={loading || !hasMore} aria-label="Next Page">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="9 18 15 12 9 6"></polyline>
-      </svg>
+    <button class="pagination-button" on:click={nextPage} disabled={loading || !hasMore} aria-label="Next Page">
+      <ChevronRightIcon />
     </button>
   </div>
   {/if}
@@ -224,9 +228,9 @@
     font-size: 0.9rem;
   }
 
-  .pagination-container button {
-    width: 44px;
-    height: 44px;
+  .pagination-button {
+    width: 32px;
+    height: 32px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -239,16 +243,16 @@
     transition: background 0.15s, box-shadow 0.15s;
   }
 
-  .pagination-container button:hover:not(:disabled) {
+  .pagination-button:hover:not(:disabled) {
     box-shadow: 0 2px 8px rgba(32, 33, 36, 0.25);
   }
-  
-  .pagination-container button:active:not(:disabled) {
+
+  .pagination-button:active:not(:disabled) {
     background: var(--color-secondary);
     box-shadow: 0 0 2px rgba(32, 33, 36, 0.3);
   }
 
-  .pagination-container button:disabled {
+  .pagination-button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
     box-shadow: none;
@@ -278,6 +282,8 @@
   .results-summary {
     display: flex;
     justify-content: center;
+    align-items: center;
+    gap: 1.5rem;
     margin: 0 0 1.25rem 0;
   }
 

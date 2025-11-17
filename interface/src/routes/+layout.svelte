@@ -25,6 +25,8 @@
       <img draggable="false" src={`${assets}/logo.png`} alt="GovScape Logo" class="logo-image" />
     </a>
     <nav>
+      <a href="https://arxiv.org/abs/2511.11010" target="_blank" rel="noopener noreferrer">Paper</a>
+      <a href="https://youtu.be/mNda8lVKT1U" target="_blank" rel="noopener noreferrer">Demo</a>
       <a href="/faq">FAQ</a>
     </nav>
   </header>
@@ -75,6 +77,10 @@
     text-decoration: none;
   }
 
+  nav a:hover {
+    color: var(--color-primary);
+  }
+
   footer {
     display: flex;
     justify-content: center;
@@ -88,5 +94,14 @@
     text-align: center;
     font-family: var(--serif-font);
     font-size: 0.8rem;
+  }
+
+  .footer-content a {
+    color: #fff;
+    text-decoration: underline;
+  }
+
+  .footer-content a:hover {
+    opacity: 0.8;
   }
 </style>
