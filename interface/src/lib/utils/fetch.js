@@ -1,7 +1,7 @@
 const IS_DEV = import.meta.env.DEV;
 
-// Default API request timeout (10 seconds)
-const DEFAULT_API_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 10000);
+// Default API request timeout (60 seconds)
+const DEFAULT_API_TIMEOUT_MS = Number(60000);
 
 const ENDPOINTS = {
   DEV: {
