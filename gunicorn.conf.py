@@ -6,8 +6,8 @@ def _get_env(key: str, default: str) -> str:
     return value if value not in (None, "") else default
 
 bind = _get_env("GUNICORN_BIND", "127.0.0.1:8080")
-workers = int(_get_env("GUNICORN_WORKERS", "2"))
-threads = int(_get_env("GUNICORN_THREADS", "2"))
+workers = int(_get_env("GUNICORN_WORKERS", "24"))
+threads = int(_get_env("GUNICORN_THREADS", "4"))
 timeout = int(_get_env("GUNICORN_TIMEOUT", "120"))
 graceful_timeout = int(_get_env("GUNICORN_GRACEFUL_TIMEOUT", "120"))
 keepalive = int(_get_env("GUNICORN_KEEPALIVE", "5"))
