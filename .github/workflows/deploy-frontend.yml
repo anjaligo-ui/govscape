@@ -1,0 +1,73 @@
+name: Deploy Frontend to S3
+
+on:
+  push:
+    branches:
+      - prod-serving
+    paths:
+      - 'interface/**'
+      - '.github/workflows/deploy-frontend.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: interface/package-lock.json
+      
+      - name: Install dependencies
+        run: |
+          cd interface
+          npm ci
+      
+      - name: Build frontend
+        run: |
+          cd interface
+          npm run build
+        env:
+          NODE_ENV: production
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+      
+      - name: Sync to S3
+        run: |
+          aws s3 sync interface/build/ s3://govscape-frontend-prod --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --exclude "_app/version.json"
+          
+          # Upload index.html with no-cache
+          aws s3 cp interface/build/index.html s3://govscape-frontend-prod/index.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --metadata-directive REPLACE
+          
+          # Upload version.json with no-cache
+          aws s3 cp interface/build/_app/version.json s3://govscape-frontend-prod/_app/version.json \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --metadata-directive REPLACE
+      
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/index.html" "/_app/version.json"
+      
+      - name: Deployment summary
+        run: |
+          echo "Frontend deployed successfully to S3!"
+          echo "Bucket: s3://govscape-frontend-prod"
+          echo "CloudFront cache invalidated"
+
