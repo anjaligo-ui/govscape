@@ -4,6 +4,7 @@
   import { searchStore, searchActions } from '$lib/stores/search';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { userTracker } from '$lib/utils/userTracking.js';
   import ChevronLeftIcon from './icons/ChevronLeftIcon.svelte';
   import ChevronRightIcon from './icons/ChevronRightIcon.svelte';
 
@@ -52,14 +53,28 @@
     if (typeof window === 'undefined') return;
     if (previousPage !== undefined && currentPage !== previousPage && gridElement) {
       window.scrollTo({ top: 0 });
+      try {
+        if (userTracker.hasConsent()) {
+          userTracker.logPagination({
+            query: $searchStore.query,
+            searchType: $searchStore.currentSearchMode,
+            filters: $searchStore.filters,
+            page: currentPage,
+          });
+        }
+      } catch (e) {}
     }
     previousPage = currentPage;
   })();
 
-  function handlePDFSelect(pdf, page, crawl_date, crawl_url, sub_domain) {
+  function handlePDFSelect(pdf, page, crawlDate, crawlUrl, subDomain) {
     const pdfId = pdf.split('/').pop();
 
-    dispatch('pdfSelect', { pdf, page, id: pdfId, crawl_date, crawl_url, sub_domain});
+    try {
+      userTracker.logPdfClick({ id: pdfId, page, subDomain });
+    } catch (e) {}
+
+    dispatch('pdfSelect', { pdf, page, id: pdfId, crawlDate, crawlUrl, subDomain });
   }
 
   function updatePageInURL(newPage) {
@@ -127,7 +142,7 @@
   <div class="masonry-wrapper" bind:this={gridElement}>
     {#each results as result (result.pdf + result.page)}
     <div class="grid-item">
-      <div class="result-card" on:click={() => handlePDFSelect(result.pdf, result.page, result.crawl_date, result.crawl_url, result.sub_domain)}>
+      <div class="result-card" on:click={() => handlePDFSelect(result.pdf, result.page, result.crawlDate, result.crawlUrl, result.subDomain)}>
         <div class="image-container">
           <img 
             src={result.jpeg} 
@@ -136,8 +151,8 @@
           />
         </div>
         <div class="result-info">
-          <div class="info-name">{result.crawl_url.split('/').pop().replaceAll("\%20", " ")}</div>
-          <div class="info-subdomain">{result.sub_domain || 'Not Available'}</div>
+          <div class="info-name">{result.crawlUrl.split('/').pop().replaceAll("\%20", " ")}</div>
+          <div class="info-subdomain">{result.subDomain || 'Not Available'}</div>
         </div>
       </div>
     </div>

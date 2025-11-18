@@ -1,3 +1,5 @@
+import { camelToSnake } from './fetch.js';
+
 const GA4_CONFIG = {
   MEASUREMENT_ID: 'G-ERVV8VCXEX',
   COOKIE_EXPIRES_DAYS: 365,
@@ -52,13 +54,55 @@ export function trackGA4Search(searchData) {
   } = searchData;
 
   const eventData = {
-    'search_term': query.substring(0, 100),
+    'search_term': (query || '').toString().substring(0, 100),
     'search_type': searchType,
   };
 
   if (filters && Object.keys(filters).length > 0) {
-    eventData.applied_filters = JSON.stringify(filters).substring(0, 100);
+    const snakeFilters = camelToSnake(filters);
+    eventData.applied_filters = JSON.stringify(snakeFilters).substring(0, 100);
   }
 
   window.gtag('event', 'search', eventData);
+}
+
+export function trackGA4PdfClick(data) {
+  const {
+    id,
+    page,
+    subDomain,
+  } = data || {};
+
+  const eventData = {
+    'pdf_id': (id ?? '').toString().substring(0, 120),
+    'page_number': Number(page) || 0,
+  };
+
+  if (subDomain) {
+    eventData.sub_domain = subDomain.substring(0, 100);
+  }
+
+  window.gtag('event', 'pdf_click', eventData);
+}
+
+export function trackGA4Pagination(data) {
+  const {
+    query,
+    searchType,
+    filters = {},
+    page,
+  } = data || {};
+
+  const eventData = {
+    'search_term': (query || '').toString().substring(0, 100),
+    'search_type': searchType,
+    'page': Number(page) || 1,
+  };
+
+  if (filters && Object.keys(filters).length > 0) {
+    const snakeFilters = camelToSnake(filters);
+    eventData.applied_filters = JSON.stringify(snakeFilters).substring(0, 100);
+  }
+
+  window.gtag('event', 'pagination', eventData);
 }

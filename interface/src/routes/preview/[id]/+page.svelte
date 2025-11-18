@@ -32,9 +32,9 @@
         return `${imageBase}/${parts.slice(-2).join('/')}`;
       });
       totalPages = images.length;
-      if (!pdfSubDomain) pdfSubDomain = data.sub_domain || '';
-      if (!pdfCrawlDate) pdfCrawlDate = data.crawl_date || '';
-      if (!pdfCrawlUrl) pdfCrawlUrl = data.crawl_url || '';
+      if (!pdfSubDomain) pdfSubDomain = data.subDomain || '';
+      if (!pdfCrawlDate) pdfCrawlDate = data.crawlDate || '';
+      if (!pdfCrawlUrl) pdfCrawlUrl = data.crawlUrl || '';
 
       const p = parseInt($page.url.searchParams.get('page') || '1', 10);
       const idx = Number.isFinite(p) ? Math.max(0, Math.min(p - 1, Math.max(totalPages - 1, 0))) : 0;
@@ -77,9 +77,9 @@
     const p = parseInt($page.url.searchParams.get('page') || '1', 10);
     const idx = Number.isFinite(p) ? Math.max(0, Math.min(p - 1, Math.max(totalPages - 1, 0))) : 0;
     if (idx !== currentPageIndex) currentPageIndex = idx;
-    const sd = $page.url.searchParams.get('sub_domain') || $page.url.searchParams.get('subDomain') || '';
-    const cd = $page.url.searchParams.get('crawl_date') || $page.url.searchParams.get('crawlDate') || '';
-    const cu = $page.url.searchParams.get('crawl_url') || $page.url.searchParams.get('crawlUrl') || '';
+    const sd = $page.url.searchParams.get('subDomain') || '';
+    const cd = $page.url.searchParams.get('crawlDate') || '';
+    const cu = $page.url.searchParams.get('crawlUrl') || '';
     if (sd) pdfSubDomain = sd;
     if (cd) pdfCrawlDate = cd;
     if (cu) pdfCrawlUrl = cu;
@@ -89,9 +89,9 @@
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
     const params = new URLSearchParams();
     if (currentPageIndex > 0) params.set('page', String(currentPageIndex + 1));
-    if (pdfSubDomain) params.set('sub_domain', pdfSubDomain);
-    if (pdfCrawlDate) params.set('crawl_date', pdfCrawlDate);
-    if (pdfCrawlUrl) params.set('crawl_url', pdfCrawlUrl);
+    if (pdfSubDomain) params.set('subDomain', pdfSubDomain);
+    if (pdfCrawlDate) params.set('crawlDate', pdfCrawlDate);
+    if (pdfCrawlUrl) params.set('crawlUrl', pdfCrawlUrl);
     const previewUrl = `${baseUrl}/preview/${id}${params.toString() ? `?${params.toString()}` : ''}`;
     try {
       await navigator.clipboard.writeText(previewUrl);

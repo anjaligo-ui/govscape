@@ -26,6 +26,30 @@ export const getImageBaseUrl = () => {
   return ENDPOINTS.PROD.S3;
 };
 
+function snakeToCamel(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(snakeToCamel);
+
+    return Object.keys(obj).reduce((acc, key) => {
+        const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+        acc[camelKey] = snakeToCamel(obj[key]);
+        return acc;
+    }, {});
+}
+
+export function camelToSnake(obj) {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(camelToSnake);
+
+    return Object.keys(obj).reduce((acc, key) => {
+        const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+        acc[snakeKey] = camelToSnake(obj[key]);
+        return acc;
+    }, {});
+}
+
 export async function apiFetch(endpoint, options = {}) {
     const defaultOptions = {
         method: 'POST',
@@ -50,6 +74,14 @@ export async function apiFetch(endpoint, options = {}) {
         },
     };
 
+    if (mergedOptions.body && typeof mergedOptions.body === 'string') {
+        try {
+            const parsed = JSON.parse(mergedOptions.body);
+            mergedOptions.body = JSON.stringify(camelToSnake(parsed));
+        } catch (e) {
+        }
+    }
+
     try {
         const apiUrl = getApiBaseUrl();
         const controller = !externalSignal ? new AbortController() : null;
@@ -69,7 +101,9 @@ export async function apiFetch(endpoint, options = {}) {
             throw new Error(errorText || `HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const data = await response.json();
+
+        return snakeToCamel(data);
     } catch (error) {
         if (error?.name === 'AbortError') {
             throw new Error('Request timed out');

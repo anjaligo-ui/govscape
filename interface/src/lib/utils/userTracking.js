@@ -3,6 +3,8 @@ import {
   loadGA4Script,
   setGA4Config,
   trackGA4Search,
+  trackGA4PdfClick,
+  trackGA4Pagination,
 } from './ga4.js';
 
 export class UserTracker {
@@ -48,6 +50,31 @@ export class UserTracker {
         query: query,
         searchType: searchType,
         filters: filters,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  logPdfClick({ id, page, subDomain }) {
+    try {
+      trackGA4PdfClick({
+        id,
+        page,
+        subDomain,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  logPagination({ query, searchType, filters = {}, page }) {
+    try {
+      trackGA4Pagination({
+        query,
+        searchType,
+        filters,
+        page,
       });
     } catch (error) {
       console.error(error);

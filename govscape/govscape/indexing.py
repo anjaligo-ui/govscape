@@ -560,12 +560,12 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
         query = f"SELECT crawl_url, crawl_date, pdf_name, sub_domain, s3_url, page_count FROM metadata WHERE pdf_name IN ({placeholders})"
         if filter:
             for key, value in filter.items():
-                if key == 'subDomain' and value != None:
+                if key == 'sub_domain' and value != None:
                     query += f" AND sub_domain='{value}'"
-                elif key == 'crawledAfter' and value != None:
+                elif key == 'crawled_after' and value != None:
                     date = value.replace("-", "") 
                     query += f" AND crawl_date>='{date}'"
-                elif key == 'crawledBefore' and value != None:
+                elif key == 'crawled_before' and value != None:
                     date = value.replace("-", "") + "999999" # Pad out time to capture all times on that date
                     query += f" AND crawl_date<='{date}'"
         conn = sqlite3.connect(self.db_path)

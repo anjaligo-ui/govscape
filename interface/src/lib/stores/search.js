@@ -96,7 +96,7 @@ export const searchActions = {
       const responseData = await apiFetch('/search/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, filters, search_type: currentSearchMode, page: pageNumber })
+        body: JSON.stringify({ query, filters, searchType: currentSearchMode, page: pageNumber })
       });
 
       const imageBase = getImageBaseUrl();
@@ -111,9 +111,9 @@ export const searchActions = {
         ...store,
         results,
         loading: false,
-        hasMore: responseData.pagination.has_next_page,
-        totalCount: responseData.pagination.total_count,
-        totalPages: responseData.pagination.total_pages
+        hasMore: responseData.pagination.hasNextPage,
+        totalCount: responseData.pagination.totalCount,
+        totalPages: responseData.pagination.totalPages
       }));
 
       if (isNewSearch && userTracker.hasConsent()) {
