@@ -354,11 +354,11 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
     def save_index(self):
         return
 
-    def valid_char(self, c):
+    def _valid_char(self, c):
         return c in self.VALID_CHARS or not c.isascii()
 
+    # SQLITE FTS5 requires special handling of punctuation and quotes
     def _clean_query(self, query):
-        # Remove hyphens from the query
         in_quote = False
         new_string = ''
         for c in query:
@@ -373,7 +373,7 @@ class SQLiteKeywordIndex(AbstractKeywordIndex):
             elif in_quote:
                 new_string += c
                 continue
-            elif not in_quote and self.valid_char(c):
+            elif not in_quote and self._valid_char(c):
                 new_string += c
             else:
                 new_string += ' '
