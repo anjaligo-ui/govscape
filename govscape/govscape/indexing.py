@@ -136,7 +136,7 @@ class FAISSIndex(AbstractVectorIndex):
         self.pdf_names = []
         self.pdf_pages = []
         faiss.omp_set_num_threads(os.cpu_count())
-        pass
+
 
     def add_batch(self, embeddings, pdf_names, pdf_pages):
 
@@ -151,14 +151,14 @@ class FAISSIndex(AbstractVectorIndex):
         if self.faiss_index is None:
             self.faiss_index = faiss.IndexFlatL2(self.d)
 
-        if self.is_trained == False:
+        if not self.is_trained:
             self.train_batch = np.vstack((self.train_batch, embeddings))
             if self.train_batch.shape[0] >= 8192*39:
                 coarse_quantizer = faiss.IndexFlatL2(self.d)
                 self.faiss_index = faiss.IndexIVFPQ(coarse_quantizer, self.d, 8192, int(self.d/4), 8)
                 self.faiss_index.train(self.train_batch)
                 self.faiss_index.nprobe = 32
-                self.faiss_index.add(self.train_batch[0:-embeddings.shape[0], :]) # add all but the last batch
+                self.faiss_index.add(self.train_batch[:-embeddings.shape[0], :]) # add all but the last batch
                 self.is_trained = True
 
         if embeddings.shape[1] != self.d:
