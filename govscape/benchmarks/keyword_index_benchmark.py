@@ -27,6 +27,7 @@ from govscape.indexing import (
     LanceDBKeywordIndex,
     SQLiteKeywordIndex,
     WhooshKeywordIndex,
+    LuceneKeywordIndex
 )
 
 # Optional imports live behind try/except so the benchmark still runs even if a
@@ -35,6 +36,7 @@ INDEX_REGISTRY: Dict[str, Type[AbstractKeywordIndex]] = {
     "lancedb": LanceDBKeywordIndex,
     "sqlite": SQLiteKeywordIndex,
     "whoosh": WhooshKeywordIndex,
+    "lucene": LuceneKeywordIndex,
 }
 
 try:  # pragma: no cover - optional dependency

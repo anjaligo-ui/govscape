@@ -16,6 +16,31 @@ from whoosh.fields import *
 from whoosh.qparser import QueryParser
 from whoosh.filedb.filestore import FileStorage
 
+lucene = None
+_LUCENE_LOADED = False
+
+def _load_lucene():
+    global lucene, _LUCENE_LOADED
+    if _LUCENE_LOADED:
+        return
+
+    import lucene as _lucene
+    lucene = _lucene
+    lucene.initVM()
+
+    # import Java-side classes ONLY after initVM
+    global Paths, FSDirectory, StandardAnalyzer, Document, Field, StringField, TextField, StoredField
+    global IndexWriter, IndexWriterConfig, DirectoryReader, IndexSearcher, QueryParser
+
+    from java.nio.file import Paths
+    from org.apache.lucene.store import FSDirectory
+    from org.apache.lucene.analysis.standard import StandardAnalyzer
+    from org.apache.lucene.document import Document, Field, StringField, TextField, StoredField
+    from org.apache.lucene.index import IndexWriter, IndexWriterConfig, DirectoryReader
+    from org.apache.lucene.search import IndexSearcher
+    from org.apache.lucene.queryparser.classic import QueryParser
+
+    _LUCENE_LOADED = True
 
 # Avoid annoying output from faiss during import
 @contextlib.contextmanager
@@ -476,6 +501,165 @@ class WhooshKeywordIndex(AbstractKeywordIndex):
     def total_pages(self):
         return self.total_entries()
 
+
+class LuceneKeywordIndex(AbstractKeywordIndex):
+    def __init__(self, index_keyword_directory):
+        _load_lucene()
+        self.index_keyword_directory = index_keyword_directory
+        os.makedirs(self.index_keyword_directory, exist_ok=True)
+
+        self._dir = None
+        self._analyzer = None
+        self._writer = None
+
+        self._reader = None
+        self._searcher = None 
+
+    def _attach(self):
+        """
+        Synchronizes lucene with the current python thread
+        """
+        _load_lucene()
+        env = lucene.getVMEnv()
+        if env is not None:
+            env.attachCurrentThread()
+
+    def _open_dir(self):
+        if self._dir is None:
+            self._dir = FSDirectory.open(Paths.get(self.index_keyword_directory))
+
+    def build_index(self):
+        """
+        Create/open the index for writing.
+        """
+        self._attach()
+        self._open_dir()
+        if self._analyzer is None:
+            self._analyzer = StandardAnalyzer()
+
+        if self._writer is None:
+            cfg = IndexWriterConfig(self._analyzer)
+            cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
+            self._writer = IndexWriter(self._dir, cfg)
+
+    def add_batch(self, texts, pdf_names, pages):
+        """
+        Adds documents to the Lucene index.
+        """
+        self._attach()
+        if self._writer is None:
+            self.build_index()
+
+        # If we've opened a reader/searcher, it won't see newly added docs until refreshed.
+        for text, pdf_name, page in zip(texts, pdf_names, pages):
+            doc = Document()
+
+            # Indexed full-text field
+            doc.add(TextField("text", text if text is not None else "", Field.Store.NO))
+
+            # Stored fields to return in results
+            doc.add(StringField("pdf_name", pdf_name if pdf_name is not None else "", Field.Store.YES))
+
+            doc.add(StoredField("page", int(page)))
+
+            self._writer.addDocument(doc)
+
+    def save_index(self):
+        """
+        Commit changes (and optionally close writer).
+        """
+        self._attach()
+        if self._writer is not None:
+            self._writer.commit()
+            # You can keep it open for more batches; closing is safer for "bulk build then serve".
+            self._writer.close()
+            self._writer = None
+
+        # Searcher must be refreshed after commits.
+        self._close_reader()
+
+    def _close_reader(self):
+        if self._reader is not None:
+            try:
+                self._reader.close()
+            except Exception:
+                pass
+        self._reader = None
+        self._searcher = None
+
+    def load_index(self):
+        """
+        Open the index for searching.
+        """
+        self._attach()
+        self._open_dir()
+        if self._analyzer is None:
+            self._analyzer = StandardAnalyzer()
+
+        # Close any existing reader so we don't leak file handles.
+        self._close_reader()
+
+        # DirectoryReader.open will fail if index doesn't exist yet.
+        try:
+            self._reader = DirectoryReader.open(self._dir)
+            self._searcher = IndexSearcher(self._reader)
+        except Exception:
+            # No index yet; create it.
+            self.build_index()
+            self.save_index()
+            self._reader = DirectoryReader.open(self._dir)
+            self._searcher = IndexSearcher(self._reader)
+
+    def _ensure_searcher_fresh(self):
+        """
+        If writer exists and has uncommitted changes, commit them;
+        then open/refresh reader so searches see newest docs.
+        """
+        self._attach()
+        if self._writer is not None:
+            self._writer.commit()
+
+        if self._reader is None or self._searcher is None:
+            self.load_index()
+            return
+
+        # Try to reopen reader if index changed.
+        new_reader = DirectoryReader.openIfChanged(self._reader)
+        if new_reader is not None:
+            self._reader.close()
+            self._reader = new_reader
+            self._searcher = IndexSearcher(self._reader)
+
+    def search(self, query, k):
+        self._attach()
+        self._ensure_searcher_fresh()
+
+        parser = QueryParser("text", self._analyzer)
+        try:
+            q = parser.parse(query)
+        except Exception:
+            q = parser.parse(QueryParser.escape(query))
+
+        top_docs = self._searcher.search(q, int(k))
+        hits = top_docs.scoreDocs
+
+        stored = self._reader.storedFields()
+
+        scores, pdf_names, pages = [], [], []
+        for sd in hits:
+            doc = stored.document(sd.doc)
+            scores.append(float(sd.score))
+            pdf_names.append(doc.get("pdf_name"))
+            pages.append(str(doc.get("page")))
+
+        return scores, pdf_names, pages
+
+
+    def total_entries(self):
+        self._attach()
+        if self._reader is None:
+            self.load_index()
+        return int(self._reader.numDocs())
 
 
 class AbstractMetadataIndex(ABC):
