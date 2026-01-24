@@ -368,6 +368,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     selected = select_indexes(args.indexes or [])
     results: List[BenchmarkResult] = []
     for name, index_cls in selected.items():
+        print(f"[INFO] Benchmarking index: {name}", file=sys.stderr)
         try:
             result = benchmark_index(
                 name=name,

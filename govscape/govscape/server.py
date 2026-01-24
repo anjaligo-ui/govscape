@@ -9,7 +9,13 @@ import time
 import math
 from .api import init_api
 from .filter import Filter
-from .indexing import DiskANNIndex, FAISSIndex, LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, SQLiteMetadataIndex
+from .indexing import DiskANNIndex, FAISSIndex, LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, SQLiteMetadataIndex, LuceneKeywordIndex
+try:
+    # Optional: only available if elasticsearch client is installed
+    from .indexing import ElasticsearchKeywordIndex  # type: ignore
+    _HAS_ES = True
+except Exception:
+    _HAS_ES = False
 
 # basic pipeline developed:
 # 1. accept a query until EOF detected
@@ -61,6 +67,12 @@ class Server:
             self.keyword_index = SQLiteKeywordIndex(self.index_keyword_directory)
         elif self.keyword_index_type == 'Whoosh':
             self.keyword_index = WhooshKeywordIndex(self.index_keyword_directory)
+        elif self.keyword_index_type == 'Lucene':
+            self.keyword_index = LuceneKeywordIndex(self.index_keyword_directory)
+        elif self.keyword_index_type == 'Elasticsearch':
+            if not _HAS_ES:
+                raise RuntimeError("ElasticsearchKeywordIndex requested but elasticsearch client is not installed")
+            self.keyword_index = ElasticsearchKeywordIndex(self.index_keyword_directory)
         else:
             raise ValueError(f"Unsupported keyword index type: {self.keyword_index_type}")
         self.keyword_index.load_index()

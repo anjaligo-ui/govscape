@@ -1,6 +1,6 @@
 import pytest
 
-from govscape.indexing import LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex
+from govscape.indexing import LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex, ElasticsearchKeywordIndex
 
 
 @pytest.fixture
@@ -45,8 +45,8 @@ def sample_documents():
 
 @pytest.mark.parametrize(
 	"index_cls",
-	[LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex],
-	ids=["lancedb", "sqlite", "whoosh", "lucene"],
+	[LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex, ElasticsearchKeywordIndex],
+	ids=["lancedb", "sqlite", "whoosh", "lucene", "elasticsearch"],
 )
 def test_keyword_indexes_round_trip(tmp_path, index_cls, sample_documents):
 	index_dir = tmp_path / "keyword_index"

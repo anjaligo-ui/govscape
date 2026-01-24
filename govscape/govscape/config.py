@@ -17,8 +17,8 @@ class IndexConfig:
             raise ValueError("vector_index_type must be either 'Memory' or 'Disk'")
         self.vector_index_type = vector_index_type
         self.keyword_index_type = keyword_index_type
-        if keyword_index_type not in ["LanceDB", "SQLite", "Whoosh"]:
-            raise ValueError("keyword_index_type must be either 'LanceDB', 'SQLite', or 'Whoosh'")
+        if keyword_index_type not in ["LanceDB", "SQLite", "Whoosh", "Lucene" "Elasticsearch"]:
+            raise ValueError("keyword_index_type must be either 'LanceDB', 'SQLite', 'Whoosh', 'Lucene', or 'Elasticsearch'")
         self.dtype = np.float32
 
         

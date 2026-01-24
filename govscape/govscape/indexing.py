@@ -15,6 +15,15 @@ from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
 from whoosh.filedb.filestore import FileStorage
+from typing import Optional, Sequence
+
+# Optional Elasticsearch client (not required for other backends)
+_ES_AVAILABLE = True
+try:  # pragma: no cover - optional dependency
+    from elasticsearch import Elasticsearch
+    from elasticsearch import helpers as es_helpers
+except Exception:
+    _ES_AVAILABLE = False
 
 lucene = None
 _LUCENE_LOADED = False
@@ -30,7 +39,7 @@ def _load_lucene():
 
     # import Java-side classes ONLY after initVM
     global Paths, FSDirectory, StandardAnalyzer, Document, Field, StringField, TextField, StoredField
-    global IndexWriter, IndexWriterConfig, DirectoryReader, IndexSearcher, QueryParser
+    global IndexWriter, IndexWriterConfig, DirectoryReader, IndexSearcher, QueryParser, BM25Similarity
 
     from java.nio.file import Paths
     from org.apache.lucene.store import FSDirectory
@@ -39,6 +48,7 @@ def _load_lucene():
     from org.apache.lucene.index import IndexWriter, IndexWriterConfig, DirectoryReader
     from org.apache.lucene.search import IndexSearcher
     from org.apache.lucene.queryparser.classic import QueryParser
+    from org.apache.lucene.search.similarities import BM25Similarity
 
     _LUCENE_LOADED = True
 
@@ -603,12 +613,14 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
         try:
             self._reader = DirectoryReader.open(self._dir)
             self._searcher = IndexSearcher(self._reader)
+            self._searcher.setSimilarity(BM25Similarity())
         except Exception:
             # No index yet; create it.
             self.build_index()
             self.save_index()
             self._reader = DirectoryReader.open(self._dir)
             self._searcher = IndexSearcher(self._reader)
+            self._searcher.setSimilarity(BM25Similarity())
 
     def _ensure_searcher_fresh(self):
         """
@@ -660,6 +672,106 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
         if self._reader is None:
             self.load_index()
         return int(self._reader.numDocs())
+
+
+class ElasticsearchKeywordIndex(AbstractKeywordIndex):
+    def __init__(self, index_keyword_directory):
+        if not _ES_AVAILABLE:
+            raise RuntimeError("Elasticsearch client not available.")
+        self.index_keyword_directory = index_keyword_directory
+        os.makedirs(self.index_keyword_directory, exist_ok=True)
+
+        self.hosts = ["http://host.docker.internal:9200"]
+
+        self.index_name = "govscape_keyword"
+        self._es: Optional[Elasticsearch] = None
+
+    def _client(self) -> Elasticsearch:
+        if self._es is None:
+            self._es = Elasticsearch(self.hosts, api_key="")
+        return self._es
+
+    def build_index(self):
+        es = self._client()
+        try:
+            exists = es.indices.exists(index=self.index_name)
+        except Exception:
+            # Some client versions return bool directly, others return dict.
+            exists = False
+        if exists:
+            return
+        mapping = {
+            "settings": {
+                "index": {
+                    # Faster visibility for tests; adjust in production.
+                    "refresh_interval": "1s"
+                }
+            },
+            "mappings": {
+                "properties": {
+                    "text": {"type": "text"},
+                    "pdf_name": {"type": "keyword"},
+                    "page": {"type": "integer"},
+                }
+            },
+        }
+        es.indices.create(index=self.index_name, **mapping)
+
+    def add_batch(self, texts, pdf_names, pages):
+        es = self._client()
+        # Ensure index exists before bulk.
+        self.build_index()
+        actions = (
+            {
+                "_index": self.index_name,
+                "_source": {
+                    "text": text if text is not None else "",
+                    "pdf_name": pdf if pdf is not None else "",
+                    "page": int(page),
+                },
+            }
+            for text, pdf, page in zip(texts, pdf_names, pages)
+        )
+        es_helpers.bulk(es, actions)
+
+    def save_index(self):
+        # Force refresh so subsequent searches see newly indexed docs.
+        es = self._client()
+        try:
+            es.indices.refresh(index=self.index_name)
+        except Exception:
+            pass
+
+    def load_index(self):
+        self._client()
+        self.build_index()
+
+    def search(self, query, k):
+        es = self._client()
+
+        is_phrase = len(query) >= 2 and query[0] == '"' and query[-1] == '"'
+        q_body = {
+            "size": int(k),
+            "query": {
+                "match_phrase" if is_phrase else "match": {
+                    "text": query.strip('"') if is_phrase else query
+                }
+            }
+        }
+        resp = es.search(index=self.index_name, body=q_body)
+        hits = resp.get("hits", {}).get("hits", [])
+        scores = [float(h.get("_score", 0.0)) for h in hits]
+        pdf_names = [h.get("_source", {}).get("pdf_name", "") for h in hits]
+        pages = [str(h.get("_source", {}).get("page", "")) for h in hits]
+        return scores, pdf_names, pages
+
+    def total_entries(self):
+        es = self._client()
+        try:
+            resp = es.count(index=self.index_name)
+            return int(resp.get("count", 0))
+        except Exception:
+            return 0
 
 
 class AbstractMetadataIndex(ABC):
