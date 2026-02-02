@@ -27,7 +27,8 @@ from govscape.indexing import (
     LanceDBKeywordIndex,
     SQLiteKeywordIndex,
     WhooshKeywordIndex,
-    LuceneKeywordIndex
+    LuceneKeywordIndex,
+    MeilisearchKeywordIndex
 )
 
 # Optional imports live behind try/except so the benchmark still runs even if a

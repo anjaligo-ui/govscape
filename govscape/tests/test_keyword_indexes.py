@@ -45,8 +45,8 @@ def sample_documents():
 
 @pytest.mark.parametrize(
 	"index_cls",
-	[LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex, ElasticsearchKeywordIndex],
-	ids=["lancedb", "sqlite", "whoosh", "lucene", "elasticsearch"],
+	[LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex, ElasticsearchKeywordIndex, MeilisearchKeywordIndex],
+	ids=["lancedb", "sqlite", "whoosh", "lucene", "elasticsearch", "meilisearch"],
 )
 def test_keyword_indexes_round_trip(tmp_path, index_cls, sample_documents):
 	index_dir = tmp_path / "keyword_index"

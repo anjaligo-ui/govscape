@@ -1,5 +1,6 @@
 # This file contains the functionality for bulk loading and indexing the data 
 # before requests can be served.
+import random
 from .config import IndexConfig
 import diskannpy as dap
 import numpy as np
@@ -15,6 +16,7 @@ from whoosh.index import create_in, open_dir
 from whoosh.fields import *
 from whoosh.qparser import QueryParser
 from whoosh.filedb.filestore import FileStorage
+import meilisearch
 from typing import Optional, Sequence
 
 # Optional Elasticsearch client (not required for other backends)
@@ -773,6 +775,83 @@ class ElasticsearchKeywordIndex(AbstractKeywordIndex):
         except Exception:
             return 0
 
+
+class MeilisearchKeywordIndex(AbstractKeywordIndex):
+    # def _create_index_if_missing(self, *, primary_key: str):
+    #     try:
+    #         # If it exists, fetch_info works; if not, it errors.
+    #         self._index.fetch_info()
+    #         return
+    #     except Exception:
+    #         pass
+
+    #     # Create index with primaryKey option. :contentReference[oaicite:8]{index=8}
+    #     task = self._client.create_index("govscape_keyword", {"primaryKey": primary_key})
+    #     self._client.wait_for_task(task.task_uid)
+
+    #     # refresh handle
+    #     self._index = self._client.index("govscape_keyword")
+
+    def __init__(self, index_keyword_directory):
+        print("Connecting to Meilisearch at http://host.docker.internal:7700/")
+        self._client = meilisearch.Client("http://host.docker.internal:7700/", "masterKey")
+        
+        # # delete existing index for fresh start
+        # try:
+        #     print("deleting")
+        #     self._client.index("govscape_keyword").delete()
+        
+        # except Exception:
+        #     pass
+            
+        # self._create_index_if_missing(primary_key="id")
+        print("232")
+
+        self._index = self._client.index("govscape_keyword")
+        print("232213")
+
+
+    def build_index(self):
+        # self._create_index_if_missing(primary_key="pdf_name")
+        pass
+
+    def add_batch(self, texts, pdf_names, pages):
+        print(f"Indexing batch of {len(texts)} documents into Meilisearch...")
+        documents = [
+            {
+                # Id will be a random int for this test
+                "id" : str(random.randint(1, 1_000_000)),
+                "text": text if text is not None else "",
+                "pdf_name": pdf if pdf is not None else "",
+                "page": int(page),
+            }
+            for text, pdf, page in zip(texts, pdf_names, pages)
+        ]
+        tasks = self._index.add_documents_in_batches(documents)
+
+        for task in tasks:
+            self._client.wait_for_task(task.task_uid, timeout_in_ms=300000)
+
+        failed = self._client.get_tasks({"statuses": ["failed"], "limit": 20})
+        print(failed)
+
+    def save_index(self):
+        pass
+
+    def load_index(self):
+        pass
+
+    def search(self, query, k):
+        results = self._index.search(query, {"limit": k})
+        hits = results.get("hits", [])
+        scores = [float(h.get("_rankingScore", 0.0)) for h in hits]
+        pdf_names = [h.get("pdf_name", "") for h in hits]
+        pages = [str(h.get("page", "")) for h in hits]
+        return scores, pdf_names, pages
+
+    def total_entries(self):
+        stats = self._index.get_stats()
+        return stats.number_of_documents
 
 class AbstractMetadataIndex(ABC):
 
