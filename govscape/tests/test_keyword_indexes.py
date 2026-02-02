@@ -1,6 +1,6 @@
 import pytest
 
-from govscape.indexing import LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex, ElasticsearchKeywordIndex
+from govscape.indexing import LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, LuceneKeywordIndex, ElasticsearchKeywordIndex, MeilisearchKeywordIndex
 
 
 @pytest.fixture
