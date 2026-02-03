@@ -1,4 +1,3 @@
-import boto3
 import os
 import argparse
 import time
@@ -6,9 +5,6 @@ import govscape as gs
 import torch
 import shutil
 import json
-import subprocess
-from botocore.config import Config
-from botocore.exceptions import ClientError
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, as_completed
 from multiprocessing import Pool, cpu_count, get_context
 
@@ -16,58 +12,43 @@ from multiprocessing import Pool, cpu_count, get_context
 # to run this file: poetry run python s3_ec2_embedding_pipeline.py 
 # ****************************************************************************************************
 
-def download_pdfs(pdfs, bucket_name, pdf_directory):
-    s3 = boto3.client("s3")
+def download_pdfs(backend, bucket_name, local_base_dir, pdfs, pdf_directory):
+    data_loader = gs.build_data_loader(backend, bucket_name, local_base_dir)
     downloaded_files = []
     pdfs_downloaded = 0
     for pdf in pdfs:
         file_name = os.path.basename(pdf)
         local_path = os.path.join(pdf_directory, file_name)
-        s3.download_file(bucket_name, pdf, local_path)
+        data_loader.download_file(pdf, local_path)
         downloaded_files.append(local_path)
         pdfs_downloaded += 1
     return downloaded_files
 
 # ****************************************************************************************************
 # gets pdfs from s3
-def list_pdfs(num_pages, progress_path, bucket_name, pdfs_dir, num_servers, server_id):
-    s3 = boto3.client("s3")
+def list_pdfs(data_loader, num_pages, progress_path, pdfs_dir, num_servers, server_id):
     pdf_files = []
-    continuation_token = None
-    if os.path.exists(progress_path):
-        with open(progress_path, 'r') as f:
-            progress = json.load(f)
-            continuation_token = progress.get('continuation_token', None)
     pages_retrieved = 0
     while True:
-        if continuation_token:
-            result = s3.list_objects_v2(Bucket=bucket_name, Prefix=pdfs_dir, ContinuationToken=continuation_token)
-        else:
-            result = s3.list_objects_v2(Bucket=bucket_name, Prefix=pdfs_dir)
-        
-        contents = result.get('Contents', [])
-        pdf_keys = [obj['Key'] for obj in contents if obj['Key'].endswith('.pdf')]
+        result = data_loader.list_objects(pdfs_dir)
+        pdf_keys = [key for key in result.keys if key.endswith('.pdf')]
         pdf_keys = [key for key in pdf_keys if (hash(key) % num_servers) == server_id]
 
         pdf_files.extend(pdf_keys)
         pages_retrieved += 1
-        if result.get('IsTruncated'):
-            continuation_token = result.get('NextContinuationToken')
-            with open(progress_path, 'w') as f:
-                json.dump({'continuation_token': continuation_token}, f)
         
-        if pages_retrieved >= num_pages or not result.get('IsTruncated'):
+        if pages_retrieved >= num_pages or not result.is_truncated:
             break
 
     return pdf_files
 
 # uploads dir of files to s3
-def upload_directory_to_s3(ec2_dir, bucket_name, s3_dir):
-    subprocess.run(f"/home/ubuntu/.local/bin/s5cmd --log error cp {ec2_dir} s3://{bucket_name}/{s3_dir}".split())
+def upload_directory_to_backend(data_loader, local_dir, remote_dir):
+    data_loader.upload_directory(local_dir, remote_dir)
 
 # processing the pdfs: running through embedding pipeline and uploading to s3
 def process_pdfs(pdf_files, processor, do_text_embedding, do_img_embedding, do_metadata_collection, pipeline_times,
-                    data_dir_s3, bucket_name, local_data_dir):
+                    data_dir_s3, data_loader, local_data_dir):
     print("Do_Text_embedding: ", do_text_embedding)
     print("Do_Img_embedding: ", do_img_embedding)
     print("Do_Metadata_collection: ", do_metadata_collection)
@@ -91,18 +72,18 @@ def process_pdfs(pdf_files, processor, do_text_embedding, do_img_embedding, do_m
     time1 = time.time()
     # UPLOADING EMBEDDINGS, TXTS, IMAGES TO S3 HERE 
     if do_text_embedding or do_img_embedding:
-        upload_directory_to_s3(txt_directory, bucket_name, data_dir_s3)
+        upload_directory_to_backend(data_loader, txt_directory, data_dir_s3)
         print("finished uploading txt")
-        upload_directory_to_s3(image_directory, bucket_name, data_dir_s3)
+        upload_directory_to_backend(data_loader, image_directory, data_dir_s3)
         print("finished uploading img")
     if do_text_embedding:
-        upload_directory_to_s3(embeddings_directory, bucket_name, data_dir_s3)
+        upload_directory_to_backend(data_loader, embeddings_directory, data_dir_s3)
         print("finished uploading embeddings")
     if do_img_embedding:
-        upload_directory_to_s3(embeddings_img_pg_directory, bucket_name, data_dir_s3)
+        upload_directory_to_backend(data_loader, embeddings_img_pg_directory, data_dir_s3)
         print("finished uploading embed img pg")
     if do_metadata_collection:
-        upload_directory_to_s3(metadata_dir, bucket_name, data_dir_s3)
+        upload_directory_to_backend(data_loader, metadata_dir, data_dir_s3)
         print("finished uploading metadata")
 
     time2 = time.time()
@@ -140,6 +121,8 @@ if __name__ == '__main__':
         parser.add_argument('--do_text_embedding', type=str2bool, help='Whether to do text embedding', default=True)
         parser.add_argument('--do_img_embedding', type=str2bool, help='Whether to do image embedding', default=True)
         parser.add_argument('--do_metadata_collection', type=str2bool, help='Whether to do metadata collection', default=True)
+        parser.add_argument('--backend', choices=['s3', 'local'], default='s3', help='Data backend to use')
+        parser.add_argument('--local_base_dir', type=str, default='data', help='Base directory for local backend')
         args = parser.parse_args()
         NUM_PAGES_TO_PROCESS = args.num_pages_to_process
         BATCH_SIZE = args.batch_size
@@ -156,6 +139,13 @@ if __name__ == '__main__':
 
         # ****************************************************************************************************
         pipeline_times = {'list' : 0, 'download' : 0, 'pdf_to_txt_img': 0, 'text_embed_time': 0, 'img_embed_time': 0, 'metadata_time': 0, 'upload' : 0, 'pdfs_processed' : 0}  # to keep track of the time it takes for each step in the pipeline
+
+        data_loader = gs.build_data_loader(
+            args.backend,
+            bucket_name,
+            args.local_base_dir,
+            checkpoint_path=progress_path,
+        )
 
         if args.model_type == "ST":
             text_model = gs.ST_TextEmbeddingModel()
@@ -176,7 +166,7 @@ if __name__ == '__main__':
 
         # get the pdf files from s3
         time_list = time.time()
-        pdf_files = list_pdfs(NUM_PAGES_TO_PROCESS, progress_path, bucket_name, pdfs_dir, args.num_servers, args.server_id)
+        pdf_files = list_pdfs(data_loader, NUM_PAGES_TO_PROCESS, progress_path, pdfs_dir, args.num_servers, args.server_id)
         pipeline_times['list'] = time.time() - time_list
 
         print("Now starting with total number of PDF files: ", len(pdf_files))
@@ -194,7 +184,7 @@ if __name__ == '__main__':
             with get_context("fork").Pool(processes=os.cpu_count()*2) as pool:
                 results = pool.starmap(
                     download_pdfs,
-                    [(pdfs, bucket_name, pdf_directory) for pdfs in download_batches]
+                    [(args.backend, bucket_name, args.local_base_dir, pdfs, pdf_directory) for pdfs in download_batches]
                 )
                 for file_names in results:
                     local_batch.extend(file_names)
@@ -202,7 +192,9 @@ if __name__ == '__main__':
             print("len(local_batch) = ", len(local_batch))
 
             process_pdfs(local_batch, processor, args.do_text_embedding, args.do_img_embedding, args.do_metadata_collection, pipeline_times,
-                            data_dir_s3, bucket_name, local_data_dir)
+                            data_dir_s3, data_loader, local_data_dir)
+
+            data_loader.save_checkpoint()
 
             if os.path.exists(local_data_dir):
                 if args.do_text_embedding or args.do_img_embedding:
@@ -227,8 +219,7 @@ if __name__ == '__main__':
                 json.dump(pipeline_times, f, indent=2)
 
             # Upload the performance JSON to S3
-            s3 = boto3.client("s3")
-            s3.upload_file(perf_path, bucket_name, os.path.join(data_dir_s3, perf_filename))
+            data_loader.upload_file(perf_path, os.path.join(data_dir_s3, perf_filename))
         
         
         # After all batches are processed, clean up the directories

@@ -4,3 +4,4 @@ from .pdf_to_embed import PDFsToEmbeddings, CLIPEmbeddingModel
 from .pdf_to_embed_multigpu import BGE_TextEmbeddingModel, ST_TextEmbeddingModel
 from .npy_to_bin import NpyToBin
 from .server import Server
+from .data_loader import build_data_loader
