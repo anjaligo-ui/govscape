@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import json
@@ -90,6 +91,7 @@ class DataLoader(ABC):
         local_dir: str,
         max_keys: int = 1000,
         filter_fn: Optional[Callable[[str], bool]] = None,
+        num_workers: Optional[int] = None,
     ) -> List[str]:
         downloaded_paths: List[str] = []
         remaining = max_keys
@@ -98,16 +100,46 @@ class DataLoader(ABC):
             keys = result.keys
             if filter_fn:
                 keys = [key for key in keys if filter_fn(key)]
-            for key in keys:
-                local_path = self._build_local_path(prefix, key, local_dir)
-                self.download_file(key, local_path)
-                downloaded_paths.append(local_path)
+            if keys:
+                pairs = [(key, self._build_local_path(prefix, key, local_dir)) for key in keys]
+                downloaded_paths.extend(
+                    self._download_files_parallel(pairs, num_workers=num_workers)
+                )
                 remaining = max_keys - len(downloaded_paths)
                 if remaining <= 0:
                     break
             if not result.is_truncated:
                 break
         return downloaded_paths
+
+    def _download_files_parallel(
+        self,
+        pairs: List[tuple[str, str]],
+        num_workers: Optional[int] = None,
+    ) -> List[str]:
+        if not pairs:
+            return []
+        if num_workers is None:
+            num_workers = min(32, (os.cpu_count() or 1) * 5)
+        if num_workers <= 1 or len(pairs) == 1:
+            downloaded: List[str] = []
+            for remote_path, local_path in pairs:
+                self.download_file(remote_path, local_path)
+                downloaded.append(local_path)
+            return downloaded
+
+        max_workers = min(num_workers, len(pairs))
+        downloaded: List[str] = []
+        remote_paths = [pair[0] for pair in pairs]
+        local_paths = [pair[1] for pair in pairs]
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            for local_path in executor.map(self._download_single, remote_paths, local_paths):
+                downloaded.append(local_path)
+        return downloaded
+
+    def _download_single(self, remote_path: str, local_path: str) -> str:
+        self.download_file(remote_path, local_path)
+        return local_path
 
     @abstractmethod
     def list_objects(
