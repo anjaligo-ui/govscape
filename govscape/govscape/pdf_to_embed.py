@@ -14,9 +14,9 @@ import logging
 import shutil
 import pypdfium2
 
-from .pdf_to_embed_multigpu import compute_text_embeddings
 from .text_embedding_models import BGE_TextEmbeddingModel, BGESmall_TextEmbeddingModel, Dummy_TextEmbeddingModel, ST_TextEmbeddingModel
 from .visual_embedding_models import CLIP_VisualEmbeddingModel, Dummy_VisualEmbeddingModel
+from .utils import read_txt_file
 
 # global vars *******************************************************************************************************
 GPU_BATCH_SIZE = 2
@@ -113,7 +113,7 @@ class PDFsToEmbeddings:
     # 1. this is the dir pdf -> dir img (of entire page) -> dir embed (of entire page) shared with og embed dir
     # *******************************************************************************************************************
     @staticmethod
-    def convert_img_embedding_to_files_batch(embed_and_paths):
+    def _convert_img_embedding_to_files_batch(embed_and_paths):
         embed, embed_file_paths = embed_and_paths
         for output_path, embedding in zip(embed_file_paths, embed):
             np.save(output_path, embedding)
@@ -134,7 +134,7 @@ class PDFsToEmbeddings:
 
         ctx = get_context('spawn')
         with ctx.Pool(processes=self.cpu_count) as pool:
-            pool.map(self.convert_img_embedding_to_files_batch, zip(chunks, chunk_embed_file_paths))
+            pool.map(self._convert_img_embedding_to_files_batch, zip(chunks, chunk_embed_file_paths))
     
     # *******************************************************************************************************************
     # dir pdf --> dir img (extracted) -> dir embed (extracted) shared with og embed dir
@@ -230,6 +230,60 @@ class PDFsToEmbeddings:
             with open(json_file_path, "w") as json_file:
                 json.dump(json_data, json_file, indent=4)
 
+    # multiple txt subdir paths -> multiple embed dirs
+    # set so the number of page files matches the batch size. 
+    @staticmethod
+    def convert_subdirs_to_embeddings(txt_path, embed_path):
+
+        if not os.path.exists(embed_path):
+            os.makedirs(embed_path)
+
+        txt_subdirs_paths = []
+        for txt_subdir in os.scandir(txt_path):
+            if txt_subdir.is_dir():
+                txt_subdirs_paths.append(txt_subdir.path)
+
+        text_batch = []
+        file_batch = []
+        for txt_subdir_path in txt_subdirs_paths:
+            embed_name = os.path.basename(txt_subdir_path)
+            embedding_dir = os.path.join(embed_path, embed_name)
+
+            if not os.path.exists(embedding_dir):
+                os.makedirs(embedding_dir)
+
+            #all txt files in the txt subdir 
+            txt_files = os.listdir(txt_subdir_path)
+
+            for txt_file in txt_files:
+                txt_path = os.path.join(txt_subdir_path, txt_file)
+                text = read_txt_file(txt_path)
+                output_path = os.path.join(embedding_dir, txt_file)
+                text_batch.append(text)
+                file_batch.append(output_path)
+        
+        return text_batch, file_batch
+
+    # given an embedding, output each embedding into their respective embedding file paths
+    @staticmethod
+    def convert_embedding_to_files(embeddings, embed_file_paths):
+        for embedding, output_path in zip(embeddings, embed_file_paths):
+            file_name = output_path.replace('.txt', '.npy')
+            # print(f"file_name: {file_name} has been saved.")
+            np.save(file_name, embedding)
+
+
+    # text_model should have started the process pool already
+    def compute_text_embeddings(self, text_model, txt_path, embed_path):
+        # sentences
+        sentences, all_embed_file_paths = self.convert_subdirs_to_embeddings(txt_path, embed_path)  #txts to text
+
+        embeddings = text_model.encode_text_batch(sentences)
+        print("Embeddings computed. Shape:", embeddings.shape)
+
+        # put them into embedding files 
+        self.convert_embedding_to_files(embeddings, all_embed_file_paths)
+
     # *******************************************************************************************************************
     # overall pipeline
     # *******************************************************************************************************************
@@ -246,7 +300,7 @@ class PDFsToEmbeddings:
         time2 = time.time()
         if do_text_embedding:
             print("Converting txts to embeddings")
-            compute_text_embeddings(self.text_model, self.txts_path, self.embeddings_path)
+            self.compute_text_embeddings(self.text_model, self.txts_path, self.embeddings_path)
         time3 = time.time()
         
         if do_img_embedding:

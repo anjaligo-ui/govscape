@@ -1,3 +1,4 @@
+from .utils import read_txt_file
 from .config import IndexConfig, ServerConfig
 from .indexing import FAISSIndex, DiskANNIndex, WhooshKeywordIndex, SQLiteMetadataIndex, LanceDBKeywordIndex, SQLiteKeywordIndex
 from .pdf_to_embed import PDFsToEmbeddings

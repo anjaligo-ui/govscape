@@ -40,18 +40,18 @@ def process_pdfs(pdf_files, processor, do_text_embedding, do_img_embedding, do_m
     time1 = time.time()
     # UPLOADING EMBEDDINGS, TXTS, IMAGES TO S3 HERE 
     if do_text_embedding or do_img_embedding:
-        upload_directory_to_backend(data_loader, txt_directory, data_dir_backend)
+        upload_directory_to_backend(data_loader, txt_directory, os.path.join(data_dir_backend, 'txt'))
         print("finished uploading txt")
-        upload_directory_to_backend(data_loader, image_directory, data_dir_backend)
+        upload_directory_to_backend(data_loader, image_directory, os.path.join(data_dir_backend, 'img'))
         print("finished uploading img")
     if do_text_embedding:
-        upload_directory_to_backend(data_loader, embeddings_directory, data_dir_backend)
+        upload_directory_to_backend(data_loader, embeddings_directory, os.path.join(data_dir_backend, 'embeddings'))
         print("finished uploading embeddings")
     if do_img_embedding:
-        upload_directory_to_backend(data_loader, embeddings_img_pg_directory, data_dir_backend)
+        upload_directory_to_backend(data_loader, embeddings_img_pg_directory, os.path.join(data_dir_backend, 'embeddings_img_pg'))
         print("finished uploading embed img pg")
     if do_metadata_collection:
-        upload_directory_to_backend(data_loader, metadata_dir, data_dir_backend)
+        upload_directory_to_backend(data_loader, metadata_dir, os.path.join(data_dir_backend, 'metadata'))
         print("finished uploading metadata")
 
     time2 = time.time()
