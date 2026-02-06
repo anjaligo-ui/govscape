@@ -21,7 +21,6 @@ from .utils import read_txt_file
 # global vars *******************************************************************************************************
 GPU_BATCH_SIZE = 2
 BATCH_SIZE = 64
-MAX_PDF_LENGTH = 50
 # *******************************************************************************************************************
 
 logging.basicConfig(
@@ -76,8 +75,6 @@ class PDFsToEmbeddings:
         try:
             pdf = pypdfium2.PdfDocument(pdf_path)
             num_pages = len(pdf)
-            if num_pages > MAX_PDF_LENGTH:
-                return
             text = []
             images = []
             for i in range(num_pages):
@@ -316,8 +313,7 @@ class PDFsToEmbeddings:
                         embedding_paths.append(os.path.join(self.embeddings_img_path,  img_subdir.name, os.path.splitext(img_file)[0] + '.npy'))
 
             print("Embedding this many images: ", len(img_paths))
-            img_model = CLIP_VisualEmbeddingModel()
-            emb = img_model.encode_images(img_paths)
+            emb = self.visual_model.encode_images(img_paths)
 
             print("Embeddings computed. Shape:", emb.shape)
             self.convert_img_embedding_to_files(emb, embedding_paths)

@@ -145,7 +145,7 @@ class CLIP_VisualEmbeddingModel(VisualEmbeddingModel):
 
         # Use spawn to avoid CUDA + fork deadlocks
         ctx = mp.get_context("spawn")
-        with ctx.Pool(processes=min(int(math.floor(os.cpu_count()/2)), len(path_batches))) as pool:
+        with ctx.Pool(processes=min(int(math.floor(os.cpu_count())), len(path_batches))) as pool:
             batch_tensors = pool.starmap(self._load_and_process_image, [(p, self.processor) for p in path_batches])
     
         # Flatten and drop empty batches
