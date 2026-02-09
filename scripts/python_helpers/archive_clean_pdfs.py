@@ -104,8 +104,7 @@ if __name__ == "__main__":
     data_loader = build_data_loader(
         args.backend,
         bucket_name,
-        args.local_base_dir,
-        checkpoint_path=progress_path,
+        args.local_base_dir
     )
 
     # gets txt files from backend

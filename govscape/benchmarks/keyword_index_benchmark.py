@@ -37,15 +37,6 @@ INDEX_REGISTRY: dict[str, type[AbstractKeywordIndex]] = {
     "whoosh": WhooshKeywordIndex,
 }
 
-try:  # pragma: no cover - optional dependency
-    from govscape.indexing import (
-        ElasticsearchKeywordIndex,  # type: ignore[import-not-found]
-    )
-
-    INDEX_REGISTRY["elasticsearch"] = ElasticsearchKeywordIndex
-except Exception:  # pylint: disable=broad-except
-    pass
-
 ALPHABET = "abcdefghijklmnopqrstuvwxyz"
 
 

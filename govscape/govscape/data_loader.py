@@ -103,7 +103,7 @@ class S3DataLoader(DataLoader):
             continuation_token=self._continuation_token,
         )
 
-    def download_file(self, remote_path: str, local_path: str) -> None:
+    def download_file(self, remote_path: str, local_path: str) -> str:
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         self.s3.download_file(self.bucket_name, remote_path, local_path)
         return local_path
@@ -184,10 +184,11 @@ class LocalDataLoader(DataLoader):
             continuation_token=continuation_token,
         )
 
-    def download_file(self, remote_path: str, local_path: str) -> None:
+    def download_file(self, remote_path: str, local_path: str) -> str:
         source_path = self._resolve(remote_path)
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         shutil.copy2(source_path, local_path)
+        return local_path
 
     def upload_file(self, local_path: str, remote_path: str) -> None:
         dest_path = self._resolve(remote_path)
@@ -255,7 +256,7 @@ class RemoteDirectoryIterator:
         prefix: str,
         remote_checkpoint_path: str,
         local_checkpoint_path: str,
-        local_dir: str = None,
+        local_dir: str,
         batch_size: int = 1000,
     ) -> None:
         self.data_loader = data_loader
