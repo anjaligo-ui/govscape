@@ -39,10 +39,10 @@ repos:
   hooks:
     - id: ruff-check
       args: [--fix, --config=pyproject.toml]
-      types_or: [python, pyi, jupyter]
+      files: "\\.pyi?$"
     - id: ruff-format
       args: [--config=pyproject.toml]
-      types_or: [python, pyi, jupyter]
+      files: "\\.pyi?$"
 
 ci:
   autofix_prs: false
