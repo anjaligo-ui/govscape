@@ -29,7 +29,6 @@ whoosh = "^2.7.4"
 gunicorn = "^23.0.0"
 lancedb = "^0.25.2"
 diskannpy = "^0.7.0"
-elasticsearch = "^9.2.1"
 
 
 [build-system]

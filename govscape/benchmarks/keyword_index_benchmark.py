@@ -27,8 +27,6 @@ from govscape.indexing import (
     LanceDBKeywordIndex,
     SQLiteKeywordIndex,
     WhooshKeywordIndex,
-    LuceneKeywordIndex,
-    MeilisearchKeywordIndex
 )
 
 # Optional imports live behind try/except so the benchmark still runs even if a
@@ -37,14 +35,26 @@ INDEX_REGISTRY: Dict[str, Type[AbstractKeywordIndex]] = {
     "lancedb": LanceDBKeywordIndex,
     "sqlite": SQLiteKeywordIndex,
     "whoosh": WhooshKeywordIndex,
-    "lucene": LuceneKeywordIndex,
-    "meilisearch": MeilisearchKeywordIndex,
 }
 
 try:  # pragma: no cover - optional dependency
     from govscape.indexing import ElasticsearchKeywordIndex  # type: ignore
 
     INDEX_REGISTRY["elasticsearch"] = ElasticsearchKeywordIndex
+except Exception:  # pylint: disable=broad-except
+    pass
+
+try:  # pragma: no cover - optional dependency
+    from govscape.indexing import MeilisearchKeywordIndex  # type: ignore
+
+    INDEX_REGISTRY["meilisearch"] = MeilisearchKeywordIndex
+except Exception:  # pylint: disable=broad-except
+    pass
+
+try:  # pragma: no cover - optional dependency
+    from govscape.indexing import LuceneKeywordIndex  # type: ignore
+
+    INDEX_REGISTRY["lucene"] = LuceneKeywordIndex
 except Exception:  # pylint: disable=broad-except
     pass
 
