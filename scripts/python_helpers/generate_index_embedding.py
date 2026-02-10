@@ -67,22 +67,14 @@ if __name__ == "__main__":
     PROJECT_ROOT = os.path.abspath(
         os.path.join(os.path.dirname(__file__), "../../")
     )  # 'govscape/'
-    LOCAL_DATA_DIR = os.path.join(
-        PROJECT_ROOT, "data", "prod"
-    )  # 'govscape/data/prod/'
-    REMOTE_EMBEDDING_DIR = (
-        args.in_data_dir + args.embedding_prefix
-    )  # 'prod-serving/
+    LOCAL_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "prod")  # 'govscape/data/prod/'
+    REMOTE_EMBEDDING_DIR = args.in_data_dir + args.embedding_prefix  # 'prod-serving/
     LOCAL_EMBEDDING_DIR = os.path.join(
         LOCAL_DATA_DIR, args.embedding_prefix.replace("/", "")
     )
     # 'govscape/data/prod/embeddings/'
-    REMOTE_DATA_DIR = (
-        args.out_data_dir
-    )  # 'prod-serving/'
-    REMOTE_INDEX_PREFIX = args.out_index_prefix.rstrip(
-        "/"
-    )  # 'index', 'index_img_pg'
+    REMOTE_DATA_DIR = args.out_data_dir  # 'prod-serving/'
+    REMOTE_INDEX_PREFIX = args.out_index_prefix.rstrip("/")  # 'index', 'index_img_pg'
     REMOTE_INDEX_DIR = (
         REMOTE_DATA_DIR + "/" + REMOTE_INDEX_PREFIX
     )  # 'prod-serving/index'
