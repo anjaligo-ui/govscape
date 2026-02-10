@@ -101,11 +101,7 @@ if __name__ == "__main__":
     # Token to track of which pages have already been processed.
     progress_path = "clean_copy_progress.json"
 
-    data_loader = build_data_loader(
-        args.backend,
-        bucket_name,
-        args.local_base_dir
-    )
+    data_loader = build_data_loader(args.backend, bucket_name, args.local_base_dir)
 
     # gets txt files from backend
     def list_digests(num_pages=1):
