@@ -30,6 +30,6 @@ The metadata.db database has a table with the columns:
 * crawl_date TEXT,
 * pdf_name TEXT,
 * sub_domain TEXT,
-* page_count INTEGER <- currently this is not filled in (i.e. entirely nulls)
+* page_count INTEGER
 
 Note: The PDF digest should always be a 32 character string without a "sha1:" prefix.
