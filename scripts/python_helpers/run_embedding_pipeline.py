@@ -173,7 +173,9 @@ if __name__ == "__main__":
             help="Base directory for local backend",
         )
         parser.add_argument("--pdf_dir", type=str, help="Directory containing PDFs")
-        parser.add_argument("--data_dir", type=str, help="Directory for output data")
+        parser.add_argument(
+            "--remote_data_dir", type=str, help="Directory for output data"
+        )
         args = parser.parse_args()
         NUM_PAGES_TO_PROCESS = args.num_pages_to_process
         BATCH_SIZE = args.batch_size
@@ -181,13 +183,13 @@ if __name__ == "__main__":
         # ---------------------------------------------------------------------------
         BUCKET_NAME = args.bucket_name
         REMOTE_PDF_DIR = args.pdf_dir  # e.g. "archive/2020/PDFs/"
-        REMOTE_DATA_DIR = args.data_dir  # e.g. "prod-serving"
+        REMOTE_DATA_DIR = args.remote_data_dir  # e.g. "prod-serving"
         PROJECT_ROOT = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "../../")
         )  # e.g. "govscape"
         LOCAL_DATA_DIR = os.path.join(
-            PROJECT_ROOT, args.local_base_dir, "prod"
-        )  # e.g. "govscape/data/prod"
+            PROJECT_ROOT, "data", "prod"
+        )  # "govscape/data/prod"
         LOCAL_PDF_DIR = os.path.join(
             LOCAL_DATA_DIR, "PDFs"
         )  # e.g. "govscape/data/prod/PDFs"
@@ -208,23 +210,24 @@ if __name__ == "__main__":
         )  # e.g. "govscape/data/prod/metadata"
         LOCAL_CHECKPOINT_PATH = os.path.join(
             LOCAL_DATA_DIR,
-            "Checkpoints",
+            "checkpoints",
             f"checkpoint_embedding_pipeline_{args.server_id}.json",
         )
-        # e.g. "govscape/data/prod/Checkpoints/checkpoint_embedding_pipeline_0.json"
-        REMOTE_CHECKPOINT_PATH = (
-            f"{REMOTE_DATA_DIR}/Checkpoints/"
-            f"checkpoint_embedding_pipeline_{args.server_id}.json"
+        # e.g. "govscape/data/prod/checkpoints/checkpoint_embedding_pipeline_0.json"
+        REMOTE_CHECKPOINT_PATH = os.path.join(
+            REMOTE_DATA_DIR,
+            "checkpoints",
+            f"checkpoint_embedding_pipeline_{args.server_id}.json",
         )
-        # e.g. "prod-serving/Checkpoints/checkpoint_embedding_pipeline_0.json"
+        # e.g. "prod-serving/checkpoints/checkpoint_embedding_pipeline_0.json"
         LOCAL_PERF_PATH = os.path.join(
-            LOCAL_DATA_DIR, "Performance", f"performance_{args.server_id}.json"
+            LOCAL_DATA_DIR, "performance", f"performance_{args.server_id}.json"
         )
-        # e.g. "govscape/data/prod/Performance/performance_0.json"
-        REMOTE_PERF_PATH = (
-            f"{REMOTE_DATA_DIR}/Performance/performance_{args.server_id}.json"
+        # e.g. "govscape/data/prod/performance/performance_0.json"
+        REMOTE_PERF_PATH = os.path.join(
+            REMOTE_DATA_DIR, "performance", f"performance_{args.server_id}.json"
         )
-        # e.g. "prod-serving/Performance/performance_0.json"
+        # e.g. "prod-serving/performance/performance_0.json"
 
         os.makedirs(LOCAL_DATA_DIR, exist_ok=True)
         os.makedirs(LOCAL_PDF_DIR, exist_ok=True)
@@ -249,7 +252,6 @@ if __name__ == "__main__":
             BUCKET_NAME,
             local_base_dir=args.local_base_dir,
         )
-
         remote_pdf_iter = RemoteDirectoryIterator(
             data_loader,
             REMOTE_PDF_DIR,
