@@ -455,13 +455,14 @@ class RemoteDirectoryIterator:
                     ]
                 )
 
+            if not result.is_truncated:
+                self.finished = True
+                break
+
             if regular_keys or tar_keys:
                 remaining = max_keys - len(downloaded_paths)
                 if remaining <= 0:
                     break
-            if not result.is_truncated:
-                self.finished = True
-                break
         return downloaded_paths
 
     def _download_files_parallel(
