@@ -1,4 +1,6 @@
 # AI modified: 2026-02-13 5e12f16b
+# AI modified: 2026-02-18 9f4dd3b5
+# AI modified: 2026-02-18 9f4dd3b5
 from __future__ import annotations
 
 import contextlib
@@ -12,6 +14,8 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from multiprocessing import Pool
+from typing import Self
 
 import boto3
 from botocore.client import BaseClient as S3Client
@@ -347,6 +351,38 @@ def build_data_loader(
     raise ValueError(f"Unsupported backend: {backend}")
 
 
+# -- Multiprocessing helpers (module-level for picklability) --
+
+_mp_loader: DataLoader | None = None
+
+
+def _init_mp_worker(loader_type: str, loader_kwargs: dict) -> None:
+    """Initializer for multiprocessing pool workers.
+
+    Reconstructs the DataLoader in each worker process to avoid pickling
+    boto3 clients.
+    """
+    global _mp_loader
+    if loader_type == "s3":
+        _mp_loader = S3DataLoader(
+            bucket_name=loader_kwargs["bucket_name"],
+            config=Config(
+                max_pool_connections=loader_kwargs.get("max_pool_connections", 60)
+            ),
+        )
+    elif loader_type == "local":
+        _mp_loader = LocalDataLoader(base_dir=loader_kwargs["base_dir"])
+    else:
+        raise ValueError(f"Unknown loader type: {loader_type}")
+
+
+def _mp_download_file(args: tuple[str, str, bool]) -> list[str]:
+    """Worker function that downloads a single file using the process-local loader."""
+    remote_path, local_path, decompress = args
+    assert _mp_loader is not None
+    return _mp_loader.download_file(remote_path, local_path, decompress)
+
+
 class RemoteDirectoryIterator:
     def __init__(
         self,
@@ -355,17 +391,45 @@ class RemoteDirectoryIterator:
         remote_checkpoint_path: str,
         local_checkpoint_path: str,
         local_dir: str,
-        batch_size: int = 1000,
+        use_multiprocessing: bool = True,
     ) -> None:
         self.data_loader = data_loader
         self.prefix = prefix
         self.remote_checkpoint_path = remote_checkpoint_path
         self.local_dir = local_dir
         self.local_checkpoint_path = local_checkpoint_path
-        self.batch_size = batch_size
+        self.use_multiprocessing = use_multiprocessing
         self.finished: bool = False
         self._continuation_token: str | None = None
+        self._mp_pool: Pool | None = None
         self._load_checkpoint_from_remote()
+
+    def _get_mp_pool(self, num_workers: int) -> Pool:
+        """Return the cached multiprocessing pool, creating it on first use."""
+        if self._mp_pool is None:
+            loader_type, loader_kwargs = self._get_loader_spec()
+            self._mp_pool = Pool(
+                processes=num_workers,
+                initializer=_init_mp_worker,
+                initargs=(loader_type, loader_kwargs),
+            )
+        return self._mp_pool
+
+    def close(self) -> None:
+        """Shut down the cached multiprocessing pool, if any."""
+        if self._mp_pool is not None:
+            self._mp_pool.terminate()
+            self._mp_pool.join()
+            self._mp_pool = None
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        self.close()
 
     def _load_checkpoint_from_remote(self) -> None:
         if self.data_loader.exists(self.remote_checkpoint_path):
@@ -430,21 +494,25 @@ class RemoteDirectoryIterator:
             if filter_fn:
                 regular_keys = [k for k in regular_keys if filter_fn(k)]
 
+            download_fn = (
+                self._download_files_multiprocess
+                if self.use_multiprocessing
+                else self._download_files_multithreaded
+            )
+
             if regular_keys:
                 pairs = [
                     (key, self._build_local_path(self.prefix, key, self.local_dir))
                     for key in regular_keys
                 ]
-                downloaded_paths.extend(
-                    self._download_files_parallel(pairs, num_workers=num_workers)
-                )
+                downloaded_paths.extend(download_fn(pairs, num_workers=num_workers))
 
             if tar_keys:
                 tar_pairs = [
                     (key, self._build_local_path(self.prefix, key, self.local_dir))
                     for key in tar_keys
                 ]
-                extracted = self._download_files_parallel(
+                extracted = download_fn(
                     tar_pairs, num_workers=num_workers, decompress=True
                 )
                 downloaded_paths.extend(
@@ -465,7 +533,7 @@ class RemoteDirectoryIterator:
                     break
         return downloaded_paths
 
-    def _download_files_parallel(
+    def _download_files_multithreaded(
         self,
         pairs: list[tuple[str, str]],
         num_workers: int | None = None,
@@ -486,3 +554,26 @@ class RemoteDirectoryIterator:
                 decompress_flags,
             )
             return [path for file_list in results for path in file_list]
+
+    def _get_loader_spec(self) -> tuple[str, dict]:
+        """Return a picklable (type, kwargs) pair describing the data loader."""
+        if isinstance(self.data_loader, S3DataLoader):
+            return ("s3", {"bucket_name": self.data_loader.bucket_name})
+        if isinstance(self.data_loader, LocalDataLoader):
+            return ("local", {"base_dir": self.data_loader.base_dir})
+        raise TypeError(f"Cannot serialize loader: {type(self.data_loader)}")
+
+    def _download_files_multiprocess(
+        self,
+        pairs: list[tuple[str, str]],
+        num_workers: int | None = None,
+        decompress: bool = False,
+    ) -> list[str]:
+        if num_workers is None:
+            num_workers = min(10, (os.cpu_count() or 1) * 5)
+
+        max_workers = min(num_workers, len(pairs))
+        pool = self._get_mp_pool(max_workers)
+        tasks = [(remote, local, decompress) for remote, local in pairs]
+        results = pool.map(_mp_download_file, tasks)
+        return [path for file_list in results for path in file_list]
