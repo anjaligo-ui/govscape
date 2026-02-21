@@ -16,13 +16,14 @@ Example:
 from __future__ import annotations
 
 import argparse
+import csv
 import shutil
 import statistics
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Dict, Iterable, List, Sequence, Tuple, Type
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
 from govscape.indexing import (
     AbstractKeywordIndex,
@@ -213,6 +214,29 @@ def format_results(results: Iterable[BenchmarkResult]) -> str:
     return "\n".join(lines)
 
 
+def write_csv(results: Iterable[BenchmarkResult], path: Path) -> None:
+    """Write benchmark results to a CSV file."""
+    result_list = list(results)
+    if not result_list:
+        return
+    column_names = [f.name for f in fields(BenchmarkResult)]
+    with path.open("w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=column_names)
+        writer.writeheader()
+        for res in result_list:
+            writer.writerow({
+                "name": res.name,
+                "documents": res.documents,
+                "queries": res.queries,
+                "add_seconds": f"{res.add_seconds:.4f}",
+                "ingest_docs_per_sec": f"{res.ingest_docs_per_sec:.2f}",
+                "query_seconds": f"{res.query_seconds:.4f}",
+                "queries_per_sec": f"{res.queries_per_sec:.2f}",
+                "avg_query_latency_ms": f"{res.avg_query_latency_ms:.2f}",
+                "index_size_mb": f"{res.index_size_mb:.2f}",
+            })
+
+
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
@@ -250,6 +274,13 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         nargs="*",
         default=None,
         help=f"Subset of indexes to run ({', '.join(sorted(INDEX_REGISTRY))})",
+    )
+    parser.add_argument(
+        "--csv",
+        type=Path,
+        default=None,
+        metavar="FILE",
+        help="Write results to this CSV file in addition to stdout.",
     )
     return parser.parse_args(argv)
 
@@ -312,6 +343,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 1
 
     print(format_results(results))
+    if args.csv is not None:
+        write_csv(results, args.csv.resolve())
+        print(f"[INFO] CSV written to {args.csv.resolve()}", file=sys.stderr)
     return 0
 
 
