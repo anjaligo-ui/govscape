@@ -18,5 +18,6 @@ scripts/__pycache__/*
 .pytest_cache
 .__pycache__/*
 .keyword_index_benchmark/*
+.keyword_index_gov_benchmark/*
 .vector_index_benchmark/*
 **/__pycache__/*

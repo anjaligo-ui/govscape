@@ -1,3 +1,4 @@
+# AI modified: 2026-02-21 d8ae3e4a
 # This file contains the functionality for bulk loading and indexing the data
 # before requests can be served.
 import random
@@ -19,6 +20,8 @@ from lancedb import connect
 from lancedb.query import MatchQuery, PhraseQuery
 from whoosh.fields import ID, NUMERIC, TEXT, Schema
 from whoosh.filedb.filestore import FileStorage
+from whoosh.index import create_in
+from whoosh.qparser import QueryParser
 from typing import Optional, Sequence
 
 lucene = None
