@@ -169,14 +169,23 @@ class S3DataLoader(DataLoader):
         }
         if continuation_token:
             kwargs["ContinuationToken"] = continuation_token
-        result = self.s3.list_objects_v2(**kwargs)
-        contents = result.get("Contents", [])
-        keys = [obj["Key"] for obj in contents]
-        self._continuation_token = result.get("NextContinuationToken")
+        remaining = max_keys
+        result = None
+        keys = []
+        while remaining > 0:
+            kwargs["MaxKeys"] = min(10000, remaining)
+            result = self.s3.list_objects_v2(**kwargs)
+            contents = result.get("Contents", [])
+            keys.extend([obj["Key"] for obj in contents])
+            continuation_token = result.get("NextContinuationToken")
+            kwargs["ContinuationToken"] = continuation_token
+            remaining = max_keys - len(keys)
+            if not continuation_token:
+                break
         return ListResult(
             keys=keys,
             is_truncated=result.get("IsTruncated", False),
-            continuation_token=self._continuation_token,
+            continuation_token=continuation_token,
         )
 
     def download_file(
@@ -481,12 +490,12 @@ class RemoteDirectoryIterator:
         while remaining > 0:
             result = self.data_loader.list_objects(
                 self.prefix,
-                max_keys=min(1000, remaining),
+                max_keys=min(100000, remaining),
                 continuation_token=self._continuation_token,
             )
             self._continuation_token = result.continuation_token
             keys = result.keys
-
+            print(f"Listed {len(keys)} keys, is_truncated={result.is_truncated}, continuation_token={self._continuation_token}")
             # Separate compressed archives from regular files so .tar.gz
             # archives can be decompressed and their contents returned.
             tar_keys = [k for k in keys if k.endswith(".tar.gz")]
