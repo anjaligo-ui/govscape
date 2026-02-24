@@ -110,9 +110,12 @@ class FAISSIndex(AbstractVectorIndex):
                 elif self.index_type == "Flat":
                     self.faiss_index = faiss.IndexFlatL2(self.d)
                 elif self.index_type == "IVF":
-                    self.faiss_index = faiss.IndexIVFFlat(self.d, 8192, faiss.METRIC_L2)
+                    quantizer = faiss.IndexFlatL2(self.d)  # the other index
+                    self.faiss_index = faiss.IndexIVFFlat(quantizer, self.d, 8192, faiss.METRIC_L2)
                 elif self.index_type == "HNSW":
                     self.faiss_index = faiss.IndexHNSWFlat(self.d, 32)
+                    self.faiss_index.hnsw.efConstruction = 200
+                    self.faiss_index.hnsw.efSearch = 200
                 else:
                     raise ValueError(f"Unsupported index type: {self.index_type}")
                 self.faiss_index.train(self.train_batch)
@@ -177,6 +180,132 @@ class FAISSIndex(AbstractVectorIndex):
 
     def total_entries(self):
         return self.faiss_index.ntotal
+
+
+class LanceDBVectorIndex(AbstractVectorIndex):
+    def __init__(self, index_directory, table_name="vector_index"):
+        self.index_directory = index_directory
+        self.table_name = table_name
+        self.db = None
+        self.table = None
+        self.d = None
+
+    def _connect(self):
+        if self.db is None:
+            os.makedirs(self.index_directory, exist_ok=True)
+            self.db = connect(self.index_directory)
+
+    def build_index(self):
+        self._connect()
+        if self.table_name in self.db.table_names():
+            self.table = self.db.open_table(self.table_name)
+            return
+
+        if self.d is None:
+            raise ValueError(
+                "Vector dimension must be known before creating LanceDB vector table"
+            )
+
+        if self.table_name not in self.db.table_names():
+            schema = pa.schema(
+                [
+                    pa.field("vector", pa.list_(pa.float32(), self.d)),
+                    pa.field("pdf_name", pa.string()),
+                    pa.field("page", pa.int32()),
+                ]
+            )
+            self.table = self.db.create_table(self.table_name, schema=schema)
+
+    def add_batch(self, embeddings, pdf_names, pdf_pages):
+        embeddings = np.asarray(embeddings, dtype=np.float32)
+        if embeddings.ndim == 1:
+            embeddings = embeddings[np.newaxis, :]
+        if embeddings.ndim != 2:
+            raise ValueError("Embeddings must be a 2D array")
+
+        if self.d is None:
+            self.d = embeddings.shape[1]
+        elif embeddings.shape[1] != self.d:
+            raise ValueError(
+                "Embedding dimension mismatch: "
+                f"expected {self.d}, got {embeddings.shape[1]}"
+            )
+
+        if self.table is None:
+            self.build_index()
+
+        rows = [
+            {
+                "vector": embeddings[i].tolist(),
+                "pdf_name": str(pdf_name),
+                "page": int(page),
+            }
+            for i, (pdf_name, page) in enumerate(
+                zip(pdf_names, pdf_pages, strict=False)
+            )
+        ]
+        if rows:
+            self.table.add(rows)
+
+    def save_index(self):
+        if self.table is None:
+            self.load_index()
+        if self.table is None:
+            return
+
+        # LanceDB cannot create an empty vector index in this mode.
+        if self.table.count_rows() > 0:
+            try:
+                self.table.create_index(vector_column_name="vector")
+            except Exception as exc:
+                if "already exists" not in str(exc).lower():
+                    raise
+        self.table.optimize()
+
+    def load_index(self):
+        self._connect()
+        try:
+            self.table = self.db.open_table(self.table_name)
+        except Exception:
+            self.build_index()
+        if self.table is not None:
+            try:
+                self.d = int(self.table.schema.field("vector").type.list_size)
+            except Exception:
+                # Keep d unknown on reload if schema does not expose fixed vector size.
+                self.d = None
+
+    def search(self, query_vector, k):
+        if self.table is None:
+            self.load_index()
+
+        query_vector = np.asarray(query_vector, dtype=np.float32)
+        if query_vector.ndim == 2:
+            if query_vector.shape[0] != 1:
+                raise ValueError("Query embedding must be a 1D vector or shape (1, d)")
+            query_vector = query_vector[0]
+        if query_vector.ndim != 1:
+            raise ValueError("Query embedding must be a 1D vector")
+        if self.d is not None and query_vector.shape[0] != self.d:
+            raise ValueError(
+                "Query dimension mismatch: "
+                f"expected {self.d}, got {query_vector.shape[0]}"
+            )
+
+        results = (
+            self.table.search(query_vector.tolist(), vector_column_name="vector")
+            .limit(int(k))
+            .to_list()
+        )
+        distances = [float(r.get("_distance", 0.0)) for r in results]
+        pdf_names = [r["pdf_name"] for r in results]
+        pages = [int(r["page"]) for r in results]
+        return distances, pdf_names, pages
+
+    def total_entries(self):
+        if self.table is None:
+            self.load_index()
+        return self.table.count_rows()
 
 
 class AbstractKeywordIndex(ABC):

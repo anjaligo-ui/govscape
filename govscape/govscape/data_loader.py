@@ -1,6 +1,3 @@
-# AI modified: 2026-02-13 5e12f16b
-# AI modified: 2026-02-18 9f4dd3b5
-# AI modified: 2026-02-18 9f4dd3b5
 from __future__ import annotations
 
 import contextlib
@@ -62,17 +59,33 @@ class DataLoader(ABC):
         """
         extract_dir = os.path.dirname(tar_path)
         extracted_files: list[str] = []
+
+        def move_extracted_file(tmp_file: str, rel_path: str) -> str:
+            dest = os.path.join(extract_dir, rel_path)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.move(tmp_file, dest)
+            return dest
+
         with tempfile.TemporaryDirectory() as tmp_dir:
             with tarfile.open(tar_path, "r:gz") as tar:
                 tar.extractall(path=tmp_dir)
+
+            extracted_paths: list[tuple[str, str]] = []
             for root, _, files in os.walk(tmp_dir):
                 for filename in files:
                     tmp_file = os.path.join(root, filename)
                     rel_path = os.path.relpath(tmp_file, tmp_dir)
-                    dest = os.path.join(extract_dir, rel_path)
-                    os.makedirs(os.path.dirname(dest), exist_ok=True)
-                    shutil.move(tmp_file, dest)
-                    extracted_files.append(dest)
+                    extracted_paths.append((tmp_file, rel_path))
+
+            if extracted_paths:
+                max_workers = min(32, len(extracted_paths))
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    extracted_files.extend(
+                        executor.map(
+                            lambda item: move_extracted_file(item[0], item[1]),
+                            extracted_paths,
+                        )
+                    )
         os.remove(tar_path)
         return extracted_files
 

@@ -1,5 +1,5 @@
 from .config import IndexConfig, ServerConfig
-from .data_loader import build_data_loader
+from .data_loader import build_data_loader, RemoteDirectoryIterator
 from .indexing import (
     FAISSIndex,
     LanceDBKeywordIndex,
