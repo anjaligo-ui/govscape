@@ -7,7 +7,6 @@ from .indexing import (
     SQLiteMetadataIndex,
     WhooshKeywordIndex,
 )
-from .npy_to_bin import NpyToBin
 from .pdf_to_embed import PDFsToEmbeddings
 from .server import Server
 from .text_embedding_models import (
@@ -32,7 +31,6 @@ __all__ = [
     "FAISSIndex",
     "IndexConfig",
     "LanceDBKeywordIndex",
-    "NpyToBin",
     "PDFsToEmbeddings",
     "RemoteDirectoryIterator",
     "SQLiteKeywordIndex",
