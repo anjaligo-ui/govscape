@@ -144,7 +144,7 @@ def generate_embeddings(num_embeddings: int, dim: int, seed: int) -> np.ndarray:
         local_dir="/tmp/data/vector_benchmark_embeddings",
     )
 
-    embeddings = []
+    embeddings : list[np.ndarray] = []
     while len(embeddings) < num_embeddings:
         batch = iterator.download_batch(
             max_keys=min(100000, int((num_embeddings - len(embeddings))/1000)), num_workers=64

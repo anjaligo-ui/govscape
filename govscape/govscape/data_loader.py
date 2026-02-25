@@ -1,3 +1,4 @@
+# AI modified: 2026-02-24 f1bc36d7
 from __future__ import annotations
 
 import contextlib
@@ -12,7 +13,7 @@ from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from multiprocessing import Pool
-from typing import Self
+from typing import Self, Any
 
 import boto3
 from botocore.client import BaseClient as S3Client
@@ -107,6 +108,16 @@ class DataLoader(ABC):
     ) -> None:
         raise NotImplementedError
 
+    @staticmethod
+    def _create_tar_chunk(args: tuple[list[str], str, str]) -> str:
+        """Create one compressed tar chunk from a list of files."""
+        chunk_files, local_dir, tar_path = args
+        with tarfile.open(tar_path, "w:gz") as tar:
+            for file_path in chunk_files:
+                arcname = os.path.relpath(file_path, local_dir)
+                tar.add(file_path, arcname=arcname)
+        return tar_path
+
     def _upload_directory_compressed(
         self, local_dir: str, remote_prefix: str, chunk_size: int = 1000
     ) -> None:
@@ -128,18 +139,20 @@ class DataLoader(ABC):
         if not all_files:
             return
 
+        def build_chunk_task(chunk_idx: int, tmp_dir: str) -> tuple[list[str], str, str]:
+            chunk_files = all_files[chunk_idx : chunk_idx + chunk_size]
+            chunk_hash = hash(tuple(chunk_files))
+            chunk_name = f"chunk_{chunk_hash}.tar.gz"
+            tar_path = os.path.join(tmp_dir, chunk_name)
+            return (chunk_files, local_dir, tar_path)
+
         with tempfile.TemporaryDirectory() as tmp_dir:
-            for chunk_idx in range(0, len(all_files), chunk_size):
-                chunk_files = all_files[chunk_idx : chunk_idx + chunk_size]
-                if not chunk_files:
-                    break
-                chunk_hash = hash(tuple(chunk_files))
-                chunk_name = f"chunk_{chunk_hash}.tar.gz"
-                tar_path = os.path.join(tmp_dir, chunk_name)
-                with tarfile.open(tar_path, "w:gz") as tar:
-                    for file_path in chunk_files:
-                        arcname = os.path.relpath(file_path, local_dir)
-                        tar.add(file_path, arcname=arcname)
+            chunk_indices = list(range(0, len(all_files), chunk_size))
+            tasks = [build_chunk_task(chunk_idx, tmp_dir) for chunk_idx in chunk_indices]
+            if tasks:
+                workers = min(os.cpu_count() or 1, len(tasks))
+                with Pool(processes=workers) as pool:
+                    pool.map(self._create_tar_chunk, tasks)
             self.upload_directory(tmp_dir, remote_prefix, compress=False)
 
     @abstractmethod
@@ -183,7 +196,7 @@ class S3DataLoader(DataLoader):
         if continuation_token:
             kwargs["ContinuationToken"] = continuation_token
         remaining = max_keys
-        result = None
+        is_truncated = False
         keys = []
         while remaining > 0:
             kwargs["MaxKeys"] = min(10000, remaining)
@@ -193,11 +206,12 @@ class S3DataLoader(DataLoader):
             continuation_token = result.get("NextContinuationToken")
             kwargs["ContinuationToken"] = continuation_token
             remaining = max_keys - len(keys)
+            is_truncated = result.get("IsTruncated", False)
             if not continuation_token:
                 break
         return ListResult(
             keys=keys,
-            is_truncated=result.get("IsTruncated", False),
+            is_truncated=is_truncated,
             continuation_token=continuation_token,
         )
 
@@ -423,10 +437,10 @@ class RemoteDirectoryIterator:
         self.use_multiprocessing = use_multiprocessing
         self.finished: bool = False
         self._continuation_token: str | None = None
-        self._mp_pool: Pool | None = None
+        self._mp_pool: Any | None = None
         self._load_checkpoint_from_remote()
 
-    def _get_mp_pool(self, num_workers: int) -> Pool:
+    def _get_mp_pool(self, num_workers: int):
         """Return the cached multiprocessing pool, creating it on first use."""
         if self._mp_pool is None:
             loader_type, loader_kwargs = self._get_loader_spec()

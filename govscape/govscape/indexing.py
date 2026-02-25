@@ -253,8 +253,7 @@ class LanceDBVectorIndex(AbstractVectorIndex):
         if self.table is None:
             return
 
-        # LanceDB cannot create an empty vector index in this mode.
-        if self.table.count_rows() > 0:
+        if self.table.count_rows() > 1024:
             try:
                 self.table.create_index(vector_column_name="vector")
             except Exception as exc:
