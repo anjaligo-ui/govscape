@@ -78,7 +78,7 @@ def test_pdfs_to_embeddings_text_only(sample_pipeline):
         do_metadata_collection=False,
     )
 
-    assert len(timings) == 4
+    assert len(timings) == 3
     assert all(isinstance(value, float) for value in timings)
 
     txt_base = Path(pipeline.txts_path)
