@@ -1,14 +1,12 @@
 from .config import IndexConfig, ServerConfig
-from .data_loader import build_data_loader
+from .data_loader import RemoteDirectoryIterator, build_data_loader
 from .indexing import (
-    DiskANNIndex,
     FAISSIndex,
     LanceDBKeywordIndex,
     SQLiteKeywordIndex,
     SQLiteMetadataIndex,
     WhooshKeywordIndex,
 )
-from .npy_to_bin import NpyToBin
 from .pdf_to_embed import PDFsToEmbeddings
 from .server import Server
 from .text_embedding_models import (
@@ -33,8 +31,8 @@ __all__ = [
     "FAISSIndex",
     "IndexConfig",
     "LanceDBKeywordIndex",
-    "NpyToBin",
     "PDFsToEmbeddings",
+    "RemoteDirectoryIterator",
     "SQLiteKeywordIndex",
     "SQLiteMetadataIndex",
     "ST_TextEmbeddingModel",
