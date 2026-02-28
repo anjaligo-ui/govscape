@@ -5,10 +5,6 @@ on:
     paths:
       - .github/workflows/publish-base-image.yml
       - docker/images/govscape-base/Dockerfile
-  pull_request:
-    paths:
-      - .github/workflows/publish-base-image.yml
-      - docker/images/govscape-base/Dockerfile
   workflow_dispatch:
 
 permissions:
@@ -42,7 +38,6 @@ jobs:
         uses: docker/setup-buildx-action@v3
       
       - name: Login to GitHub Container Registry
-        if: ${{ github.event_name != 'pull_request' }} # Only on push and manual trigger, not on PRs
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -64,7 +59,6 @@ jobs:
         with:
           context: docker/images/govscape-base
           file: docker/images/govscape-base/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }} # Only push on non-PR events
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
