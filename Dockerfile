@@ -2,7 +2,7 @@
 # Use ./compose.yaml to start the API server after running the embedding pipeline.
 
 # TODO, once first PR is merged, update to remove the branch from the version tag
-FROM ghcr.io/bcglee/govscape-base:py3.11.14-lucene10.0.0-poetry2.3.2-lucene-keyword-index 
+FROM ghcr.io/bcglee/govscape-base:py3.11.14-lucene10.0.0-poetry2.3.2-lucene-keyword-index
 
 ENV DEBIAN_FRONTEND=noninteractive
 
