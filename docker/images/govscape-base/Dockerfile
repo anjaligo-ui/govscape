@@ -36,10 +36,17 @@ RUN curl -fsSL https://downloads.apache.org/lucene/pylucene/pylucene-${LUCENE_VE
 # Python, and pylucene remain after copying.
 FROM python:${PYTHON_VERSION} AS runtime
 
+# In the docker environment, we can install dependencies globally without conflicts.
+# This allows us to use a globally installed pylucene package, which cannot be pip installed.
+ENV POETRY_VIRTUALENVS_CREATE=false
+ENV POETRY_HOME=/opt/poetry
+ENV PATH="${POETRY_HOME}/bin:${PATH}"
+
 RUN DEBIAN_FRONTEND=noninteractive \
     && apt-get update \
     && apt-get install -y --no-install-recommends default-jre-headless \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -s /usr/lib/jvm/default-java /usr/lib/jvm/temurin
+    && ln -s /usr/lib/jvm/default-java /usr/lib/jvm/temurin \
+    && curl -fsSL https://install.python-poetry.org | python3 -
 
 COPY --from=builder /usr/local /usr/local
