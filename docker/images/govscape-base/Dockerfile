@@ -38,9 +38,11 @@ FROM python:${PYTHON_VERSION} AS runtime
 
 ARG POETRY_VERSION=2.3.2
 
-# In the docker environment, we can install dependencies globally without conflicts.
-# This allows us to use a globally installed pylucene package, which cannot be pip installed.
-ENV POETRY_VIRTUALENVS_CREATE=false
+# We will allow poetry to access system site packages, which allows us to use the globally installed pylucene package.
+# We will also need to configure poetry to not use in-project venvs, since any out-of-container venvs won't have lucene and won't be recreated.
+ENV POETRY_VIRTUALENVS_OPTIONS_SYSTEM_SITE_PACKAGES=true
+ENV POETRY_VIRTUALENVS_IN_PROJECT=false
+
 ENV POETRY_HOME=/opt/poetry
 ENV PATH="${POETRY_HOME}/bin:${PATH}"
 
