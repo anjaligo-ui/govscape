@@ -62,7 +62,10 @@ def main():
     else:
         app_argv = sys.argv[1:]
         gunicorn_argv = [
-            # Ensure poetry runs gunicorn so it picks up with or without a venv.
+            # Use poetry to run gunicorn so it always picks up the correct environment
+            # and dependencies.
+            # "poetry", "run" are not necessary if a venv is active,but it doesn't hurt
+            # and ensures it works even if there is no active venv (e.g. docker image).
             "poetry",
             "run",
             "gunicorn",

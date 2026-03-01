@@ -22,6 +22,8 @@ lucene = None
 _LUCENE_LOADED = False
 
 
+# Lazily load lucene and its Java dependencies only when needed, since it may
+# not exist in all environments.
 def _load_lucene():
     try:
         global lucene, _LUCENE_LOADED
@@ -73,6 +75,7 @@ def _load_lucene():
         _LUCENE_LOADED = True
     except Exception as e:
         print(f"Lucene not available: {e}")
+        raise ImportError("Lucene is not available in this environment") from e
 
 
 # Avoid annoying output from faiss during import
@@ -866,14 +869,14 @@ class AbstractMetadataIndex(ABC):
 class SQLiteMetadataIndex(AbstractMetadataIndex):
     def __init__(self, index_metadata_directory):
         self.index_metadata_directory = index_metadata_directory
-        if not os.path.exists(self.index_metadata_directory):
-            os.makedirs(self.index_metadata_directory)
         self.db_path = os.path.join(self.index_metadata_directory, "metadata.db")
         self.conn = None
         self.cursor = None
         self._total_entries = -1
 
     def build_index(self):
+        if not os.path.exists(self.index_metadata_directory):
+            os.makedirs(self.index_metadata_directory)
         self.conn = sqlite3.connect(self.db_path)
         self.cursor = self.conn.cursor()
         self.cursor.execute("""
