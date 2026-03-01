@@ -20,7 +20,7 @@ class IndexConfig:
         self.keyword_index_type = keyword_index_type
         if keyword_index_type not in ["LanceDB", "SQLite", "Whoosh", "Lucene"]:
             raise ValueError(
-                "keyword_index_type must be either 'LanceDB', 'SQLite', 'Whoosh', or 'Lucene'"
+                "keyword_index_type must be 'LanceDB', 'SQLite', 'Whoosh', or 'Lucene'"
             )
         self.dtype = np.float32
 

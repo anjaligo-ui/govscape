@@ -1,10 +1,6 @@
 # AI modified: 2026-02-21 d8ae3e4a
 # This file contains the functionality for bulk loading and indexing the data
 # before requests can be served.
-import random
-from .config import IndexConfig
-import diskannpy as dap
-import numpy as np
 import contextlib
 import os
 import pickle as pkl
@@ -22,10 +18,10 @@ from whoosh.fields import ID, NUMERIC, TEXT, Schema
 from whoosh.filedb.filestore import FileStorage
 from whoosh.index import create_in
 from whoosh.qparser import QueryParser
-from typing import Optional, Sequence
 
 lucene = None
 _LUCENE_LOADED = False
+
 
 def _load_lucene():
     try:
@@ -34,25 +30,51 @@ def _load_lucene():
             return
 
         import lucene as _lucene
+
         lucene = _lucene
         lucene.initVM()
 
         # import Java-side classes ONLY after initVM
-        global Paths, FSDirectory, StandardAnalyzer, Document, Field, StringField, TextField, StoredField
-        global IndexWriter, IndexWriterConfig, DirectoryReader, IndexSearcher, QueryParser, BM25Similarity
+        global \
+            Paths, \
+            FSDirectory, \
+            StandardAnalyzer, \
+            Document, \
+            Field, \
+            StringField, \
+            TextField, \
+            StoredField
+        global \
+            IndexWriter, \
+            IndexWriterConfig, \
+            DirectoryReader, \
+            IndexSearcher, \
+            QueryParser, \
+            BM25Similarity
 
         from java.nio.file import Paths
-        from org.apache.lucene.store import FSDirectory
         from org.apache.lucene.analysis.standard import StandardAnalyzer
-        from org.apache.lucene.document import Document, Field, StringField, TextField, StoredField
-        from org.apache.lucene.index import IndexWriter, IndexWriterConfig, DirectoryReader
-        from org.apache.lucene.search import IndexSearcher
+        from org.apache.lucene.document import (
+            Document,
+            Field,
+            StoredField,
+            StringField,
+            TextField,
+        )
+        from org.apache.lucene.index import (
+            DirectoryReader,
+            IndexWriter,
+            IndexWriterConfig,
+        )
         from org.apache.lucene.queryparser.classic import QueryParser
+        from org.apache.lucene.search import IndexSearcher
         from org.apache.lucene.search.similarities import BM25Similarity
+        from org.apache.lucene.store import FSDirectory
 
         _LUCENE_LOADED = True
     except Exception as e:
         print(f"Lucene not available: {e}")
+
 
 # Avoid annoying output from faiss during import
 @contextlib.contextmanager
@@ -560,7 +582,7 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
         self._writer = None
 
         self._reader = None
-        self._searcher = None 
+        self._searcher = None
 
     def _attach(self):
         """
@@ -597,15 +619,21 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
         if self._writer is None:
             self.build_index()
 
-        # If we've opened a reader/searcher, it won't see newly added docs until refreshed.
-        for text, pdf_name, page in zip(texts, pdf_names, pages):
+        # New readers/searchers won't see newly added docs until refreshed.
+        for text, pdf_name, page in zip(texts, pdf_names, pages, strict=False):
             doc = Document()
 
             # Indexed full-text field
             doc.add(TextField("text", text if text is not None else "", Field.Store.NO))
 
             # Stored fields to return in results
-            doc.add(StringField("pdf_name", pdf_name if pdf_name is not None else "", Field.Store.YES))
+            doc.add(
+                StringField(
+                    "pdf_name",
+                    pdf_name if pdf_name is not None else "",
+                    Field.Store.YES,
+                )
+            )
 
             doc.add(StoredField("page", int(page)))
 
@@ -618,7 +646,6 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
         self._attach()
         if self._writer is not None:
             self._writer.commit()
-            # You can keep it open for more batches; closing is safer for "bulk build then serve".
             self._writer.close()
             self._writer = None
 
@@ -627,10 +654,8 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
 
     def _close_reader(self):
         if self._reader is not None:
-            try:
-                self._reader.close()
-            except Exception:
-                pass
+            self._reader.close()
+
         self._reader = None
         self._searcher = None
 
@@ -703,12 +728,12 @@ class LuceneKeywordIndex(AbstractKeywordIndex):
 
         return scores, pdf_names, pages
 
-
     def total_entries(self):
         self._attach()
         if self._reader is None:
             self.load_index()
         return int(self._reader.numDocs())
+
 
 class AbstractMetadataIndex(ABC):
     @abstractmethod

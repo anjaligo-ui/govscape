@@ -10,21 +10,24 @@ from flask_cors import CORS
 from .api import init_api
 from .config import ServerConfig
 from .filter import Filter
-from .indexing import DiskANNIndex, FAISSIndex, LanceDBKeywordIndex, SQLiteKeywordIndex, WhooshKeywordIndex, SQLiteMetadataIndex
+from .indexing import (
+    FAISSIndex,
+    LanceDBKeywordIndex,
+    SQLiteKeywordIndex,
+    SQLiteMetadataIndex,
+    WhooshKeywordIndex,
+)
+
 try:
     # Optional: only available if Lucene library is installed
-    from .indexing import LuceneKeywordIndex  # type: ignore
+    from .indexing import LuceneKeywordIndex
+
     _HAS_LUCENE = True
 except Exception:
     _HAS_LUCENE = False
 
 from .indexing import (
     AbstractKeywordIndex,
-    FAISSIndex,
-    LanceDBKeywordIndex,
-    SQLiteKeywordIndex,
-    SQLiteMetadataIndex,
-    WhooshKeywordIndex,
 )
 
 
@@ -78,9 +81,11 @@ class Server:
             self.keyword_index = SQLiteKeywordIndex(self.index_keyword_directory)
         elif self.keyword_index_type == "Whoosh":
             self.keyword_index = WhooshKeywordIndex(self.index_keyword_directory)
-        elif self.keyword_index_type == 'Lucene':
+        elif self.keyword_index_type == "Lucene":
             if not _HAS_LUCENE:
-                raise RuntimeError("LuceneKeywordIndex requested but Lucene client is not installed")
+                raise RuntimeError(
+                    "LuceneKeywordIndex requested but Lucene client is not installed"
+                )
             self.keyword_index = LuceneKeywordIndex(self.index_keyword_directory)
         else:
             raise ValueError(

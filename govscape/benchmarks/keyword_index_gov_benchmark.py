@@ -1,6 +1,6 @@
 # AI modified: 2026-02-21 d8ae3e4a
 # AI modified: 2026-02-22 d8ae3e4a
-"""Benchmark utilities for AbstractKeywordIndex implementations using real government documents.
+"""Benchmark utilities for AbstractKeywordIndex implementations on real documents.
 
 Loads pages from a directory tree of the form:
     {txt_dir}/{digest}/{digest}_{pg_no}.txt
@@ -24,9 +24,9 @@ import shutil
 import statistics
 import sys
 import time
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, fields
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Type
 
 from govscape.indexing import (
     AbstractKeywordIndex,
@@ -36,30 +36,32 @@ from govscape.indexing import (
 )
 
 # Registry of available keyword index implementations
-INDEX_REGISTRY: Dict[str, Type[AbstractKeywordIndex]] = {
+INDEX_REGISTRY: dict[str, type[AbstractKeywordIndex]] = {
     "lancedb": LanceDBKeywordIndex,
     "sqlite": SQLiteKeywordIndex,
     "whoosh": WhooshKeywordIndex,
 }
 
 try:  # pragma: no cover - optional dependency
-    from govscape.indexing import LuceneKeywordIndex  # type: ignore
+    from govscape.indexing import LuceneKeywordIndex
 
     INDEX_REGISTRY["lucene"] = LuceneKeywordIndex
 except Exception:  # pylint: disable=broad-except
     pass
 
 
-def load_documents_from_txt_dir(txt_dir: Path) -> Tuple[List[str], List[str], List[int]]:
+def load_documents_from_txt_dir(
+    txt_dir: Path,
+) -> tuple[list[str], list[str], list[int]]:
     """Walk {txt_dir}/{digest}/{digest}_{pg_no}.txt and return parallel lists.
 
     Returns:
         Tuple of (texts, pdf_names, page_numbers) where pdf_name is the digest
         and page_number is parsed from the filename suffix.
     """
-    texts: List[str] = []
-    pdf_names: List[str] = []
-    pages: List[int] = []
+    texts: list[str] = []
+    pdf_names: list[str] = []
+    pages: list[int] = []
 
     for digest_dir in sorted(txt_dir.iterdir()):
         if not digest_dir.is_dir():
@@ -82,9 +84,9 @@ def load_documents_from_txt_dir(txt_dir: Path) -> Tuple[List[str], List[str], Li
     return texts, pdf_names, pages
 
 
-def load_queries_from_file(queries_file: Path) -> List[str]:
+def load_queries_from_file(queries_file: Path) -> list[str]:
     """Read one query per non-empty line from a plain-text file."""
-    queries: List[str] = []
+    queries: list[str] = []
     for line in queries_file.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if line:
@@ -95,6 +97,7 @@ def load_queries_from_file(queries_file: Path) -> List[str]:
 @dataclass
 class BenchmarkResult:
     """Results from benchmarking a single index implementation."""
+
     name: str
     documents: int
     queries: int
@@ -105,7 +108,7 @@ class BenchmarkResult:
     avg_query_latency_ms: float
     index_size_mb: float
 
-    def as_row(self) -> Tuple[str, int, float, float, float, float, float]:
+    def as_row(self) -> tuple[str, int, float, float, float, float, float]:
         return (
             self.name,
             self.documents,
@@ -119,7 +122,7 @@ class BenchmarkResult:
 
 def benchmark_index(
     name: str,
-    index_cls: Type[AbstractKeywordIndex],
+    index_cls: type[AbstractKeywordIndex],
     texts: Sequence[str],
     pdf_names: Sequence[str],
     pages: Sequence[int],
@@ -128,7 +131,7 @@ def benchmark_index(
     index_root: Path,
 ) -> BenchmarkResult:
     """Benchmark a single keyword index implementation.
-    
+
     Args:
         name: Name of the index implementation
         index_cls: Index class to instantiate
@@ -138,7 +141,7 @@ def benchmark_index(
         queries: Queries to execute
         k: Number of results to retrieve per query
         index_root: Root directory for index storage
-        
+
     Returns:
         BenchmarkResult with performance metrics
     """
@@ -154,21 +157,27 @@ def benchmark_index(
     index.add_batch(texts, pdf_names, pages)
     index.save_index()
     ingest_duration = time.perf_counter() - start_ingest
-    ingest_docs_per_sec = len(texts) / ingest_duration if ingest_duration else float("inf")
+    ingest_docs_per_sec = (
+        len(texts) / ingest_duration if ingest_duration else float("inf")
+    )
 
-    index_size_mb = sum(f.stat().st_size for f in index_dir.rglob("*") if f.is_file()) / (1024 * 1024)
+    index_size_mb = sum(
+        f.stat().st_size for f in index_dir.rglob("*") if f.is_file()
+    ) / (1024 * 1024)
 
     # Re-load the index to simulate real usage
     index = index_cls(index_dir.as_posix())
     index.load_index()
 
-    query_latencies: List[float] = []
+    query_latencies: list[float] = []
     for query in queries:
         q_start = time.perf_counter()
         index.search(query, k)
         query_latencies.append(time.perf_counter() - q_start)
     total_query_time = sum(query_latencies)
-    queries_per_sec = len(queries) / total_query_time if total_query_time else float("inf")
+    queries_per_sec = (
+        len(queries) / total_query_time if total_query_time else float("inf")
+    )
     avg_latency_ms = statistics.mean(query_latencies) * 1000 if query_latencies else 0.0
 
     return BenchmarkResult(
@@ -184,11 +193,11 @@ def benchmark_index(
     )
 
 
-def select_indexes(requested: Sequence[str]) -> Dict[str, Type[AbstractKeywordIndex]]:
+def select_indexes(requested: Sequence[str]) -> dict[str, type[AbstractKeywordIndex]]:
     """Select which indexes to benchmark based on user input."""
     if not requested:
         return INDEX_REGISTRY
-    selected: Dict[str, Type[AbstractKeywordIndex]] = {}
+    selected: dict[str, type[AbstractKeywordIndex]] = {}
     for key in requested:
         lowered = key.lower()
         if lowered not in INDEX_REGISTRY:
@@ -207,13 +216,13 @@ def format_results(results: Iterable[BenchmarkResult]) -> str:
         f"{'Queries/s':>12} {'Avg Latency (ms)':>18} {'Size (MB)':>12}"
     )
     lines = [header, "-" * len(header)]
-    for res in results:
-        lines.append(
-            f"{res.name:<18} {res.documents:>8} {res.add_seconds:>12.4f} "
-            f"{res.ingest_docs_per_sec:>12.2f} "
-            f"{res.queries_per_sec:>12.2f} {res.avg_query_latency_ms:>18.2f} "
-            f"{res.index_size_mb:>12.2f}"
-        )
+    lines.extend(
+        f"{res.name:<18} {res.documents:>8} {res.add_seconds:>12.4f} "
+        f"{res.ingest_docs_per_sec:>12.2f} "
+        f"{res.queries_per_sec:>12.2f} {res.avg_query_latency_ms:>18.2f} "
+        f"{res.index_size_mb:>12.2f}"
+        for res in results
+    )
     return "\n".join(lines)
 
 
@@ -227,23 +236,25 @@ def write_csv(results: Iterable[BenchmarkResult], path: Path) -> None:
         writer = csv.DictWriter(fh, fieldnames=column_names)
         writer.writeheader()
         for res in result_list:
-            writer.writerow({
-                "name": res.name,
-                "documents": res.documents,
-                "queries": res.queries,
-                "add_seconds": f"{res.add_seconds:.4f}",
-                "ingest_docs_per_sec": f"{res.ingest_docs_per_sec:.2f}",
-                "query_seconds": f"{res.query_seconds:.4f}",
-                "queries_per_sec": f"{res.queries_per_sec:.2f}",
-                "avg_query_latency_ms": f"{res.avg_query_latency_ms:.2f}",
-                "index_size_mb": f"{res.index_size_mb:.2f}",
-            })
+            writer.writerow(
+                {
+                    "name": res.name,
+                    "documents": res.documents,
+                    "queries": res.queries,
+                    "add_seconds": f"{res.add_seconds:.4f}",
+                    "ingest_docs_per_sec": f"{res.ingest_docs_per_sec:.2f}",
+                    "query_seconds": f"{res.query_seconds:.4f}",
+                    "queries_per_sec": f"{res.queries_per_sec:.2f}",
+                    "avg_query_latency_ms": f"{res.avg_query_latency_ms:.2f}",
+                    "index_size_mb": f"{res.index_size_mb:.2f}",
+                }
+            )
 
 
 def parse_args(argv: Sequence[str]) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="Benchmark keyword index implementations using real government documents"
+        description="Benchmark keyword index implementations on real documents."
     )
     parser.add_argument(
         "--txt-dir",
@@ -290,7 +301,7 @@ def parse_args(argv: Sequence[str]) -> argparse.Namespace:
         type=int,
         default=10_000,
         help="Total number of queries to run, sampling with replacement when the"
-             " file has fewer entries (default: 10000).",
+        " file has fewer entries (default: 10000).",
     )
     parser.add_argument(
         "--seed",
@@ -324,7 +335,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if not texts:
         print("[ERROR] No documents loaded", file=sys.stderr)
         return 1
-    print(f"[INFO] Loaded {len(texts)} pages from {len(set(pdf_names))} documents", file=sys.stderr)
+    print(
+        f"[INFO] Loaded {len(texts)} pages from {len(set(pdf_names))} documents",
+        file=sys.stderr,
+    )
 
     # Load queries from file
     print(f"[INFO] Loading queries from {queries_file}...", file=sys.stderr)
@@ -339,12 +353,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.num_queries <= len(base_queries):
         queries = rng.sample(base_queries, args.num_queries)
     else:
-        queries = base_queries + rng.choices(base_queries, k=args.num_queries - len(base_queries))
+        queries = base_queries + rng.choices(
+            base_queries, k=args.num_queries - len(base_queries)
+        )
     print(f"[INFO] Running {len(queries)} queries (seed={args.seed})", file=sys.stderr)
 
     # Run benchmarks
     selected = select_indexes(args.indexes or [])
-    results: List[BenchmarkResult] = []
+    results: list[BenchmarkResult] = []
     for name, index_cls in selected.items():
         print(f"[INFO] Benchmarking index: {name}", file=sys.stderr)
         try:

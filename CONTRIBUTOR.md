@@ -26,7 +26,7 @@ poetry install
 to install the current project and dev dependencies.
 
 ### Dev container
-We recommend using the dev container for local development to ensure your local environment has all necessary dependencies set up correctly. You will need [Docker Desktop](https://www.docker.com/get-started/) and the [Dev Containers extension for VS Code](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers). 
+We recommend using the dev container for local development to ensure your local environment has all necessary dependencies set up correctly. You will need [Docker Desktop](https://www.docker.com/get-started/) and the [Dev Containers extension for VS Code](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
 
 This also works with the [Remote - SSH extension](https://code.visualstudio.com/remote/advancedcontainers/develop-remote-host) if you want to develop on a remote machine instead of your local machine.
 

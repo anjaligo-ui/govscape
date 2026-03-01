@@ -4,10 +4,10 @@ from .indexing import (
     DiskANNIndex,
     FAISSIndex,
     LanceDBKeywordIndex,
+    LuceneKeywordIndex,
     SQLiteKeywordIndex,
     SQLiteMetadataIndex,
     WhooshKeywordIndex,
-    LuceneKeywordIndex,
 )
 from .npy_to_bin import NpyToBin
 from .pdf_to_embed import PDFsToEmbeddings
@@ -34,6 +34,7 @@ __all__ = [
     "FAISSIndex",
     "IndexConfig",
     "LanceDBKeywordIndex",
+    "LuceneKeywordIndex",
     "NpyToBin",
     "PDFsToEmbeddings",
     "SQLiteKeywordIndex",
@@ -42,7 +43,6 @@ __all__ = [
     "Server",
     "ServerConfig",
     "WhooshKeywordIndex",
-    "LuceneKeywordIndex",
     "build_data_loader",
     "read_txt_file",
 ]

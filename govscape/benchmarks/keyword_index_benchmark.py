@@ -38,7 +38,7 @@ INDEX_REGISTRY: dict[str, type[AbstractKeywordIndex]] = {
 }
 
 try:  # pragma: no cover - optional dependency
-    from govscape.indexing import LuceneKeywordIndex  # type: ignore
+    from govscape.indexing import LuceneKeywordIndex
 
     INDEX_REGISTRY["lucene"] = LuceneKeywordIndex
 except Exception:  # pylint: disable=broad-except
