@@ -7,7 +7,10 @@ echo ""
 
 # we need to activate the Poetry environment for the user to use it in the terminal
 # so edit the .bashrc file to activate the Poetry environment automatically when the terminal is opened
-echo "Activating Poetry environment in the terminal..."
+echo "Activating Poetry environment..."
+
+test python -m venv .containervenv --system-site-packages
+
 echo "eval \$(poetry env activate)" >> ~/.bashrc
 # also for zsh users, we need to add it to the .zshrc file
 echo "eval \$(poetry env activate)" >> ~/.zshrc
@@ -49,11 +52,7 @@ echo ""
 echo "____________________________________________________________________________________________"
 echo ""
 echo ""
-echo ""
-echo ""
 echo "Post-create setup completed successfully!"
-echo ""
-echo ""
 echo ""
 echo ""
 echo "____________________________________________________________________________________________"
