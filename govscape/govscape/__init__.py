@@ -3,6 +3,7 @@ from .data_loader import RemoteDirectoryIterator, build_data_loader
 from .indexing import (
     FAISSIndex,
     LanceDBKeywordIndex,
+    LuceneKeywordIndex,
     SQLiteKeywordIndex,
     SQLiteMetadataIndex,
     WhooshKeywordIndex,
@@ -31,6 +32,7 @@ __all__ = [
     "FAISSIndex",
     "IndexConfig",
     "LanceDBKeywordIndex",
+    "LuceneKeywordIndex",
     "PDFsToEmbeddings",
     "RemoteDirectoryIterator",
     "SQLiteKeywordIndex",

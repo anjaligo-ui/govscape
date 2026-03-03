@@ -11,25 +11,18 @@ jobs:
         python: ['3.11.14']
       fail-fast: false
     runs-on: ${{ matrix.os }}
+    container:
+      # TODO, once first PR is merged, update to remove the branch from the version tag
+      image: ghcr.io/bcglee/govscape-base:py${{ matrix.python }}-lucene10.0.0-poetry2.3.2-lucene-keyword-index
     steps:
-      - name: Disk Cleanup
-        run: |
-            sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
-            sudo docker image prune --all --force
-            sudo docker builder prune -a
       - name: Checkout Repo
-        uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-      - name: Install package
+        uses: actions/checkout@v6
+      - name: Install packages
         run: |
-          poetry install
+          /opt/poetry/bin/poetry install
       - name: Run tests
         run: |
-          poetry run pytest govscape/tests
+          /opt/poetry/bin/poetry run pytest govscape/tests
       - uses: codecov/codecov-action@v5
 
 on:

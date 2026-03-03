@@ -14,6 +14,7 @@ from .indexing import (
     AbstractKeywordIndex,
     FAISSIndex,
     LanceDBKeywordIndex,
+    LuceneKeywordIndex,
     SQLiteKeywordIndex,
     SQLiteMetadataIndex,
     WhooshKeywordIndex,
@@ -70,6 +71,8 @@ class Server:
             self.keyword_index = SQLiteKeywordIndex(self.index_keyword_directory)
         elif self.keyword_index_type == "Whoosh":
             self.keyword_index = WhooshKeywordIndex(self.index_keyword_directory)
+        elif self.keyword_index_type == "Lucene":
+            self.keyword_index = LuceneKeywordIndex(self.index_keyword_directory)
         else:
             raise ValueError(
                 f"Unsupported keyword index type: {self.keyword_index_type}"

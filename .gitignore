@@ -3,6 +3,7 @@ govscape/govscape/**/__pycache__
 govscape/tests/**/__pycache__
 govscape/data/*
 .venv
+.containervenv
 data
 poetry.lock
 node_modules
@@ -18,5 +19,6 @@ scripts/__pycache__/*
 .pytest_cache
 .__pycache__/*
 .keyword_index_benchmark/*
+.keyword_index_gov_benchmark/*
 .vector_index_benchmark/*
 **/__pycache__/*

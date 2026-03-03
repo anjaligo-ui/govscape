@@ -1,3 +1,5 @@
+# AI modified: 2026-02-21 d8ae3e4a
+# AI modified: 2026-03-01 b6756050
 # This file contains the functionality for bulk loading and indexing the data
 # before requests can be served.
 import contextlib
@@ -5,6 +7,7 @@ import os
 import pickle as pkl
 import sqlite3
 import sys
+import threading
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -16,6 +19,77 @@ from whoosh.fields import ID, NUMERIC, TEXT, Schema
 from whoosh.filedb.filestore import FileStorage
 from whoosh.index import create_in
 from whoosh.qparser import QueryParser
+
+lucene = None
+_LUCENE_LOADED = False
+# Prevents two threads from racing through initVM() simultaneously.
+_lucene_load_lock = threading.Lock()
+
+
+# Lazily load lucene and its Java dependencies only when needed, since it may
+# not exist in all environments.
+def _load_lucene():
+    global lucene, _LUCENE_LOADED
+    # Already loaded (no lock needed for read).
+    if _LUCENE_LOADED:
+        return
+    # Module lock to prevent two threads both calling initVM().
+    with _lucene_load_lock:
+        if _LUCENE_LOADED:
+            return
+        try:
+            import lucene as _lucene
+
+            lucene = _lucene
+            lucene.initVM()
+
+            # import Java-side classes ONLY after initVM
+            global \
+                Paths, \
+                FSDirectory, \
+                StandardAnalyzer, \
+                Document, \
+                Field, \
+                StringField, \
+                TextField, \
+                StoredField
+            global \
+                IndexWriter, \
+                IndexWriterConfig, \
+                DirectoryReader, \
+                IndexSearcher, \
+                QueryParser, \
+                BM25Similarity
+
+            from java.nio.file import Paths  # type: ignore[import]
+            from org.apache.lucene.analysis.standard import (  # type: ignore[import]
+                StandardAnalyzer,
+            )
+            from org.apache.lucene.document import (  # type: ignore[import]
+                Document,
+                Field,
+                StoredField,
+                StringField,
+                TextField,
+            )
+            from org.apache.lucene.index import (  # type: ignore[import]
+                DirectoryReader,
+                IndexWriter,
+                IndexWriterConfig,
+            )
+            from org.apache.lucene.queryparser.classic import (  # type: ignore[import]
+                QueryParser,
+            )
+            from org.apache.lucene.search import IndexSearcher  # type: ignore[import]
+            from org.apache.lucene.search.similarities import (  # type: ignore[import]
+                BM25Similarity,
+            )
+            from org.apache.lucene.store import FSDirectory  # type: ignore[import]
+
+            _LUCENE_LOADED = True
+        except Exception as e:
+            print(f"Lucene not available: {e}")
+            raise ImportError("Lucene is not available in this environment") from e
 
 
 # Avoid annoying output from faiss during import
@@ -594,6 +668,151 @@ class WhooshKeywordIndex(AbstractKeywordIndex):
 
     def total_pages(self):
         return self.total_entries()
+
+
+class LuceneKeywordIndex(AbstractKeywordIndex):
+    def __init__(self, index_keyword_directory):
+        # No JVM calls here — the gunicorn master may fork workers, and the
+        # JVM's internal daemon threads (GC, finalizer) don't survive fork(),
+        # leaving it in a broken state.  All JVM work is deferred to
+        # _ensure_ready(), which runs lazily inside each worker process.
+        self.index_keyword_directory = index_keyword_directory
+        os.makedirs(self.index_keyword_directory, exist_ok=True)
+        self._dir = None
+        self._analyzer = None
+        self._writer = None
+        self._reader = None
+        self._searcher = None
+        # PID where the search index was opened; triggers re-init after fork.
+        self._ready_pid = None
+        # Ensures only one thread per process performs the full init.
+        self._init_lock = threading.Lock()
+
+    def _attach(self):
+        """Start the JVM (if needed) and attach the current thread."""
+        _load_lucene()
+        env = lucene.getVMEnv()
+        if env is not None:
+            env.attachCurrentThread()
+
+    def _ensure_ready(self):
+        """
+        Lazily start the JVM and open the search index, once per process.
+
+        When gunicorn uses preload_app=True the Server object is created in the
+        master process, which then fork()s workers. The JVM's internal daemon
+        threads (GC, finalizer, etc.) are not copied by fork(), leaving it in
+        an unreliable state where some JNI calls work and others deadlock.
+        By deferring all JVM work to the first actual use inside each worker we
+        guarantee that initVM() runs fresh in every process.
+        """
+        pid = os.getpid()
+        if self._ready_pid == pid:
+            self._attach()
+            return
+
+        with self._init_lock:
+            if self._ready_pid == pid:
+                self._attach()
+                return
+
+            self._attach()
+            self._dir = FSDirectory.open(Paths.get(self.index_keyword_directory))
+            self._analyzer = StandardAnalyzer()
+
+            try:
+                reader = DirectoryReader.open(self._dir)
+            except Exception:
+                # Index does not exist yet; create an empty one.
+                cfg = IndexWriterConfig(self._analyzer)
+                cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
+                w = IndexWriter(self._dir, cfg)
+                w.commit()
+                w.close()
+                reader = DirectoryReader.open(self._dir)
+
+            searcher = IndexSearcher(reader)
+            searcher.setSimilarity(BM25Similarity())
+            self._reader = reader
+            self._searcher = searcher
+            self._ready_pid = pid
+
+    def _open_dir(self):
+        if self._dir is None:
+            self._dir = FSDirectory.open(Paths.get(self.index_keyword_directory))
+
+    def build_index(self):
+        """Create/open the index for writing."""
+        self._attach()
+        self._open_dir()
+        if self._analyzer is None:
+            self._analyzer = StandardAnalyzer()
+
+        if self._writer is None:
+            cfg = IndexWriterConfig(self._analyzer)
+            cfg.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND)
+            self._writer = IndexWriter(self._dir, cfg)
+
+    def add_batch(self, texts, pdf_names, pages):
+        """Adds documents to the Lucene index."""
+        self._attach()
+        if self._writer is None:
+            self.build_index()
+
+        for text, pdf_name, page in zip(texts, pdf_names, pages, strict=False):
+            doc = Document()
+
+            # No need to store the text since we only search for it, not return it.
+            doc.add(TextField("text", text if text is not None else "", Field.Store.NO))
+            doc.add(
+                StringField(
+                    "pdf_name",
+                    pdf_name if pdf_name is not None else "",
+                    Field.Store.YES,
+                )
+            )
+            doc.add(StoredField("page", int(page)))
+            self._writer.addDocument(doc)
+
+    def save_index(self):
+        """Commit changes and close writer."""
+        self._attach()
+        if self._writer is not None:
+            self._writer.commit()
+            self._writer.close()
+            self._writer = None
+
+    def load_index(self):
+        # Deferred to _ensure_ready() on first search/total_entries call,
+        # so the JVM is never started in the gunicorn master process.
+        pass
+
+    def search(self, query, k):
+        """Search the index for the query string, returning up to k results."""
+        self._ensure_ready()
+
+        parser = QueryParser("text", self._analyzer)
+        try:
+            q = parser.parse(query)
+        except Exception:
+            q = parser.parse(QueryParser.escape(query))
+
+        top_docs = self._searcher.search(q, int(k))
+        hits = top_docs.scoreDocs
+
+        scores, pdf_names, pages = [], [], []
+        stored = self._searcher.storedFields()
+        for sd in hits:
+            doc = stored.document(sd.doc)
+            scores.append(float(sd.score))
+            pdf_names.append(doc.get("pdf_name"))
+            pages.append(str(doc.get("page")))
+
+        return scores, pdf_names, pages
+
+    def total_entries(self):
+        self._ensure_ready()
+        return int(self._reader.numDocs())
 
 
 class AbstractMetadataIndex(ABC):
