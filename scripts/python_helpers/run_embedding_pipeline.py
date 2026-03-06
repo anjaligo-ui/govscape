@@ -269,8 +269,10 @@ if __name__ == "__main__":
             batch_limit = min(BATCH_SIZE, max_files_to_process - files_processed)
             local_batch = remote_pdf_iter.download_batch(
                 max_keys=batch_limit,
-                filter_fn=lambda key: key.endswith(".pdf")
-                and (hash(key) % args.num_servers) == args.server_id,
+                filter_fn=lambda key: (
+                    key.endswith(".pdf")
+                    and (hash(key) % args.num_servers) == args.server_id
+                ),
             )
             pipeline_times["download"] += time.time() - time_download
             if not local_batch:
