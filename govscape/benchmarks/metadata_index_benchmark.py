@@ -28,6 +28,7 @@ from pathlib import Path
 
 from govscape.indexing import (
     AbstractMetadataIndex,
+    DuckDBMetadataIndex,
     ImprovedSQLiteMetadataIndex,
     SQLiteMetadataIndex,
 )
@@ -35,6 +36,7 @@ from govscape.indexing import (
 INDEX_REGISTRY: dict[str, type[AbstractMetadataIndex]] = {
     "sqlite": SQLiteMetadataIndex,
     "improved-sqlite": ImprovedSQLiteMetadataIndex,
+    "duckdb": DuckDBMetadataIndex,
 }
 
 # Synthetic sub-domains that documents are drawn from.
