@@ -26,10 +26,15 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
-from govscape.indexing import AbstractMetadataIndex, SQLiteMetadataIndex
+from govscape.indexing import (
+    AbstractMetadataIndex,
+    ImprovedSQLiteMetadataIndex,
+    SQLiteMetadataIndex,
+)
 
 INDEX_REGISTRY: dict[str, type[AbstractMetadataIndex]] = {
     "sqlite": SQLiteMetadataIndex,
+    "improved-sqlite": ImprovedSQLiteMetadataIndex,
 }
 
 # Synthetic sub-domains that documents are drawn from.
