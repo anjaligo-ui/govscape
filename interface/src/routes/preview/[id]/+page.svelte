@@ -1,4 +1,5 @@
 <script>
+  // AI modified: 2026-03-08 f62d40b8
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
@@ -16,6 +17,9 @@
   let pdfSubDomain = '';
   let pdfCrawlDate = '';
   let pdfCrawlUrl = '';
+  let crawlInstances = [];
+  let crawlHistoryExpanded = false;
+  const CRAWL_COLLAPSE_THRESHOLD = 5;
 
   async function fetchImages() {
     if (!id) return;
@@ -35,6 +39,10 @@
       if (!pdfSubDomain) pdfSubDomain = data.subDomain || '';
       if (!pdfCrawlDate) pdfCrawlDate = data.crawlDate || '';
       if (!pdfCrawlUrl) pdfCrawlUrl = data.crawlUrl || '';
+      crawlInstances = data.crawlInstances || [
+        { crawlUrl: pdfCrawlUrl, crawlDate: pdfCrawlDate, subDomain: pdfSubDomain }
+      ];
+      crawlHistoryExpanded = false;
 
       const p = parseInt($page.url.searchParams.get('page') || '1', 10);
       const idx = Number.isFinite(p) ? Math.max(0, Math.min(p - 1, Math.max(totalPages - 1, 0))) : 0;
@@ -164,14 +172,30 @@
         <aside class="preview-sidebar">
           <div class="preview-details">
             <h5 class="modal-title">{(pdfCrawlUrl && pdfCrawlUrl.split('/').pop().replaceAll("\%20", " ")) || (id && id.split('/').pop().replaceAll("%20", " "))}</h5>
-            <div><b>Sub-Domain:</b> {pdfSubDomain || 'Not Available'}</div>
-            <div><b>Crawl Date:</b> {pdfCrawlDate || 'Not Available'}</div>
-            <div>
-              <b>Crawl URL:</b>
-              {#if pdfCrawlUrl}
-                <a href={pdfCrawlUrl}>{pdfCrawlUrl}</a>
-              {:else}
-                Not Available
+            <div class="crawl-history">
+              <h6 class="crawl-history-title">Crawl History</h6>
+              <table class="crawl-history-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Site</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {#each (crawlHistoryExpanded ? crawlInstances : crawlInstances.slice(0, CRAWL_COLLAPSE_THRESHOLD)) as inst}
+                    <tr>
+                    <td class="crawl-date">{inst.crawlDate || 'N/A'}</td>
+                    <td class="crawl-subdomain">{inst.subDomain || 'N/A'}</td>
+                    <td class="crawl-url"><a href={inst.crawlUrl} target="_blank" rel="noopener noreferrer">{inst.crawlUrl || 'N/A'}</a></td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+              {#if crawlInstances.length > CRAWL_COLLAPSE_THRESHOLD}
+                <button class="crawl-history-toggle" on:click={() => crawlHistoryExpanded = !crawlHistoryExpanded}>
+                  {crawlHistoryExpanded ? 'Show less' : `Show ${crawlInstances.length - CRAWL_COLLAPSE_THRESHOLD} more`}
+                </button>
               {/if}
             </div>
             <div class="action-buttons">
@@ -209,6 +233,59 @@
     --preview-border-color: #e0e4e8;
     --preview-spacing-unit: 1rem;
     --preview-border-radius: 8px;
+  }
+
+  .crawl-history {
+    margin-bottom: 0.75rem;
+  }
+
+  .crawl-history-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 0.4rem;
+    color: var(--text-color-primary);
+  }
+
+  .crawl-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+
+  .crawl-history-table th {
+    text-align: left;
+    padding: 4px 6px;
+    border-bottom: 2px solid var(--preview-border-color);
+    white-space: nowrap;
+  }
+
+  .crawl-history-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--preview-border-color);
+    vertical-align: top;
+  }
+
+  .crawl-date {
+    white-space: nowrap;
+  }
+
+  .crawl-subdomain {
+    white-space: nowrap;
+  }
+
+  .crawl-url a {
+    word-break: break-all;
+  }
+
+  .crawl-history-toggle {
+    margin-top: 4px;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 0.78rem;
+    color: var(--color-primary);
+    cursor: pointer;
+    text-decoration: underline;
   }
 
   main {
