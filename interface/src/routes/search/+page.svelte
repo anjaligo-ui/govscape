@@ -11,8 +11,8 @@
   let selectedPDF = null;
 
   function handlePDFSelect(event) {
-    const { id, page, crawlDate, crawlUrl, subDomain } = event.detail || {};
-    selectedPDF = { id, page, crawlDate, crawlUrl, subDomain };
+    const { id, page, crawlDate, crawlUrl, subDomain, crawlInstances } = event.detail || {};
+    selectedPDF = { id, page, crawlDate, crawlUrl, subDomain, crawlInstances };
     shouldShowPreview = true;
   }
 

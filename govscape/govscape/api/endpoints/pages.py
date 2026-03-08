@@ -1,8 +1,18 @@
+# AI modified: 2026-03-08 f62d40b8
 from flask import current_app
 from flask_restx import Namespace, Resource, fields
 
 # Create namespace
 ns = Namespace("pages", description="PDF pages operations")
+
+crawl_instance_model = ns.model(
+    "CrawlInstance",
+    {
+        "crawl_url": fields.String(description="Source URL for this crawl"),
+        "crawl_date": fields.String(description="Crawl date (YYYY-MM-DD)"),
+        "sub_domain": fields.String(description="Subdomain for this crawl"),
+    },
+)
 
 pages_response = ns.model(
     "PagesResponse",
@@ -10,9 +20,13 @@ pages_response = ns.model(
         "images": fields.List(
             fields.String, description="List of image paths for pages"
         ),
-        "crawl_url": fields.String(description="Crawl URL for the PDF"),
-        "crawl_date": fields.String(description="Crawl date for the PDF (YYYY-MM-DD)"),
-        "sub_domain": fields.String(description="Subdomain for the PDF source"),
+        "crawl_url": fields.String(description="Most recent crawl URL"),
+        "crawl_date": fields.String(description="Most recent crawl date"),
+        "sub_domain": fields.String(description="Most recent subdomain"),
+        "crawl_instances": fields.List(
+            fields.Nested(crawl_instance_model),
+            description="All crawl instances, newest first",
+        ),
     },
 )
 

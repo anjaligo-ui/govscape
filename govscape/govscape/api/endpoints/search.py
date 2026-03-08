@@ -15,6 +15,15 @@ search_input = ns.model(
     },
 )
 
+search_crawl_instance = ns.model(
+    "SearchCrawlInstance",
+    {
+        "crawl_url": fields.String(description="Source URL for this crawl"),
+        "crawl_date": fields.String(description="Crawl date (YYYY-MM-DD)"),
+        "sub_domain": fields.String(description="Subdomain for this crawl"),
+    },
+)
+
 search_result = ns.model(
     "SearchResult",
     {
@@ -22,9 +31,13 @@ search_result = ns.model(
         "page": fields.String(description="Page number"),
         "distance": fields.Float(description="Distance score"),
         "jpeg": fields.String(description="JPEG image path"),
-        "crawl_date": fields.String(description="Crawl date"),
-        "crawl_url": fields.String(description="Crawl URL"),
-        "sub_domain": fields.String(description="Subdomain"),
+        "crawl_date": fields.String(description="Most recent crawl date"),
+        "crawl_url": fields.String(description="Most recent crawl URL"),
+        "sub_domain": fields.String(description="Most recent subdomain"),
+        "crawl_instances": fields.List(
+            fields.Nested(search_crawl_instance),
+            description="All crawl instances, newest first",
+        ),
     },
 )
 
