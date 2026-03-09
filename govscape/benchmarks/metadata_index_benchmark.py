@@ -34,13 +34,11 @@ from pathlib import Path
 from govscape.indexing import (
     AbstractMetadataIndex,
     DuckDBMetadataIndex,
-    ImprovedSQLiteMetadataIndex,
     SQLiteMetadataIndex,
 )
 
 INDEX_REGISTRY: dict[str, type[AbstractMetadataIndex]] = {
     "sqlite": SQLiteMetadataIndex,
-    "improved-sqlite": ImprovedSQLiteMetadataIndex,
     "duckdb": DuckDBMetadataIndex,
 }
 
