@@ -1,20 +1,9 @@
 import shutil
 from pathlib import Path
 
-import numpy as np
 import pytest
 
 from govscape.pdf_to_embed import PDFsToEmbeddings
-
-
-class DummyTextEmbeddingModel:
-    """Lightweight stand-in for the real text embedding model used in tests."""
-
-    def encode_text(self, text: str) -> np.ndarray:
-        return np.ones(4, dtype=np.float32)
-
-    def encode_image(self, image_path: str) -> np.ndarray:
-        return np.ones(4, dtype=np.float32)
 
 
 @pytest.fixture()
@@ -24,18 +13,19 @@ def sample_pipeline(tmp_path):
     shutil.copytree(source_pdfs, pdf_dir)
     data_dir = tmp_path / "data"
     data_dir.mkdir()
-    pipeline = PDFsToEmbeddings(str(pdf_dir), str(data_dir), DummyTextEmbeddingModel(), model_pool=None)
+    pipeline = PDFsToEmbeddings(str(pdf_dir), str(data_dir), "Dummy", "Dummy")
     pdf_files = sorted(f.name for f in pdf_dir.glob("*.pdf"))
     return pipeline, pdf_files
 
 
-def test_convert_pdf_to_txt_and_img(sample_pipeline):
+def test_convert_pdf_to_txt_img_and_metadata(sample_pipeline):
     pipeline, pdf_files = sample_pipeline
     assert "govscape_intro.pdf" in pdf_files
-    PDFsToEmbeddings.convert_pdf_to_txt_and_img(
+    PDFsToEmbeddings.convert_pdf_to_txt_img_and_metadata(
         pipeline.txts_path,
         pipeline.img_path,
         pipeline.pdfs_path,
+        pipeline.metadata_dir,
         "govscape_intro.pdf",
     )
 
@@ -52,7 +42,7 @@ def test_convert_pdf_to_txt_and_img(sample_pipeline):
 
 def test_convert_pdfs_to_txt_and_img_creates_outputs(sample_pipeline):
     pipeline, pdf_files = sample_pipeline
-    pipeline.convert_pdfs_to_txt_and_img(pdf_files)
+    pipeline.convert_pdfs_to_txt_img_and_metadata(pdf_files)
 
     txt_base = Path(pipeline.txts_path)
     img_base = Path(pipeline.img_path)
@@ -88,7 +78,7 @@ def test_pdfs_to_embeddings_text_only(sample_pipeline):
         do_metadata_collection=False,
     )
 
-    assert len(timings) == 4
+    assert len(timings) == 3
     assert all(isinstance(value, float) for value in timings)
 
     txt_base = Path(pipeline.txts_path)

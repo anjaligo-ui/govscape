@@ -1,0 +1,74 @@
+{
+	"name": "python3-poetry-pylucene",
+	"dockerComposeFile": "compose.yaml",
+	"service": "app",
+	"workspaceFolder": "/workspace",
+	// 👇 Features to add to the Dev Container. More info: https://containers.dev/implementors/features.
+	"features": {
+		"ghcr.io/devcontainers/features/common-utils:2": {
+			"installZsh": "true",
+			"username": "vscode",
+			"userUid": "1000",
+			"userGid": "1000",
+			"upgradePackages": "true"
+		},
+		"ghcr.io/devcontainers/features/git:1": {
+			"version": "latest",
+			"ppa": "false"
+		},
+		"ghcr.io/devcontainers/features/aws-cli:1": {},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			// Trixie does not support moby.
+			"moby": false
+		},
+		"ghcr.io/devcontainers/features/node:1": {
+			"version": "20"
+		}
+	},
+	// 👇 Use 'forwardPorts' to make a list of ports inside the container available locally.
+	"forwardPorts": [
+		8080,
+		5173
+	],
+	"portsAttributes": {
+		"5173": {
+			"label": "Web"
+		},
+		"8080": {
+			"label": "API"
+		}
+	},
+	// 👇 Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": ".devcontainer/post-create-setup.sh",
+	// 👇 Configure tool-specific properties.
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"charliermarsh.ruff"
+			],
+			"settings": {
+				// Activate the correct devcontainer only Python environment.
+				"python.defaultInterpreterPath": "/workspace/.containervenv/bin/python",
+				"python.terminal.activateEnvironment": false
+			}
+		}
+	},
+	"mounts": [
+		// Mount AWS credentials.
+		"source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind,readonly"
+	],
+	"hostRequirements": {
+		// Enable GPU if available.
+		"gpu": "optional"
+	},
+	"remoteEnv": {
+		// For docker-outside-of-docker
+		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
+	},
+	"containerEnv": {
+		"VIRTUAL_ENV": "/workspace/.containervenv"
+	},
+	"remoteUser": "vscode"
+}
