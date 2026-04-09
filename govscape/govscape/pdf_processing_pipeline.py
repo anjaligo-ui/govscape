@@ -2,8 +2,6 @@ import logging
 import os
 import time
 
-from sentence_transformers import LoggingHandler
-
 from .processing import (
     PageImageEmbeddingStage,
     PDFExtractionStage,
@@ -14,7 +12,7 @@ logging.basicConfig(
     format="%(asctime)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
     level=logging.INFO,
-    handlers=[LoggingHandler()],
+    handlers=[logging.StreamHandler()],
 )
 
 
