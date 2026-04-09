@@ -1,3 +1,4 @@
+import logging
 import os
 from multiprocessing import get_context
 
@@ -55,9 +56,9 @@ class PageImageEmbeddingStage(ProcessingStage):
                         )
                     )
 
-        print("Embedding this many images: ", len(img_paths))
+        logging.info(f"Embedding {len(img_paths)} images")
         emb = self.model.encode_images(img_paths)
-        print("Embeddings computed. Shape:", emb.shape)
+        logging.info(f"Image embeddings computed. Shape: {emb.shape}")
 
         self._save_embeddings_parallel(emb, embedding_paths)
 

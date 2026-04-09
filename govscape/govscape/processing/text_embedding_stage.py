@@ -1,3 +1,4 @@
+import logging
 import os
 
 import numpy as np
@@ -64,6 +65,6 @@ class TextEmbeddingStage(ProcessingStage):
             self.txts_path, self.embeddings_path
         )
         embeddings = self.model.encode_text_batch(sentences)
-        print("Embeddings computed. Shape:", embeddings.shape)
+        logging.info(f"Text embeddings computed. Shape: {embeddings.shape}")
         for embedding, output_path in zip(embeddings, embed_file_paths, strict=False):
             np.save(output_path, embedding)

@@ -1,4 +1,5 @@
 import argparse
+import logging
 import multiprocessing
 import os
 import time
@@ -7,6 +8,12 @@ import pandas as pd
 import requests
 from govscape.data_loader import build_data_loader
 from warcio.archiveiterator import ArchiveIterator
+
+logging.basicConfig(
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+)
 
 
 def main():
