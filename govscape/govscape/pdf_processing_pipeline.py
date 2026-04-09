@@ -8,13 +8,6 @@ from .processing import (
     TextEmbeddingStage,
 )
 
-logging.basicConfig(
-    format="%(asctime)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-    handlers=[logging.StreamHandler()],
-)
-
 
 class PDFProcessingPipeline:
     def __init__(self, pdf_directory, data_dir, text_model_type, visual_model_type):
@@ -38,7 +31,7 @@ class PDFProcessingPipeline:
         time1 = time.time()
         pdfs_successfully_parsed = 0
         if run_extraction:
-            print("Converting pdfs to txts and page images")
+            logging.info("Converting pdfs to txts and page images")
             pdf_extraction_stage = PDFExtractionStage(
                 pdfs_path=self.pdfs_path,
                 txts_path=self.txts_path,
@@ -49,13 +42,13 @@ class PDFProcessingPipeline:
             )
             pdf_extraction_stage.validate()
             pdfs_successfully_parsed = pdf_extraction_stage.run()
-        print(
-            f"% pdfs successfully parsed: {pdfs_successfully_parsed} / {len(pdf_files)}"
+        logging.info(
+            f"PDFs successfully parsed: {pdfs_successfully_parsed} / {len(pdf_files)}"
         )
 
         time2 = time.time()
         if do_text_embedding:
-            print("Converting txts to embeddings")
+            logging.info("Converting txts to embeddings")
             text_embedding_stage = TextEmbeddingStage(
                 txts_path=self.txts_path,
                 embeddings_path=self.embeddings_path,
@@ -66,7 +59,7 @@ class PDFProcessingPipeline:
         time3 = time.time()
 
         if do_img_embedding:
-            print("Converting imgs to embeddings")
+            logging.info("Converting imgs to embeddings")
             page_image_embedding_stage = PageImageEmbeddingStage(
                 img_path=self.img_path,
                 embeddings_img_path=self.embeddings_img_path,
@@ -81,9 +74,9 @@ class PDFProcessingPipeline:
         text_embed_time = time3 - time2
         img_embed_time = time4 - time3
 
-        print("pdf -> txt, img, metadata time: ", pdf_to_txt_img_metadata)
-        print("txt -> embed time: ", text_embed_time)
-        print("img per page -> embed time: ", img_embed_time)
+        logging.info(f"pdf -> txt, img, metadata time: {pdf_to_txt_img_metadata}")
+        logging.info(f"txt -> embed time: {text_embed_time}")
+        logging.info(f"img per page -> embed time: {img_embed_time}")
 
         return (
             pdf_to_txt_img_metadata,
