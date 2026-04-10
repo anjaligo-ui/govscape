@@ -866,6 +866,11 @@ class AbstractMetadataIndex(ABC):
         :return: Total number of embeddings.
         """
 
+    @staticmethod
+    def _normalize_crawl_date(date_str: str) -> str:
+        """Truncate crawl_date to YYYYMMDD, stripping any trailing time component."""
+        return date_str[:8]
+
 
 class SQLiteMetadataIndex(AbstractMetadataIndex):
     def __init__(self, index_metadata_directory):
@@ -902,7 +907,7 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
         to_insert = [
             (
                 md.get("crawl_url", ""),
-                md.get("crawl_date", ""),
+                self._normalize_crawl_date(md.get("crawl_date", "")),
                 md.get("pdf_name", ""),
                 md.get("sub_domain", ""),
                 md.get("page_count", 0),
@@ -971,7 +976,7 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
             pdf_name = row[2]
             row_dict = {
                 "crawl_url": row[0],
-                "crawl_date": f"{row[1][0:4]}-{row[1][4:6]}-{row[1][6:8]}",
+                "crawl_date": row[1],
                 "pdf_name": row[2],
                 "sub_domain": row[3],
                 "page_count": row[5],
@@ -1022,7 +1027,10 @@ class DuckDBMetadataIndex(AbstractMetadataIndex):
         arrow_table = pa.table(
             {
                 "crawl_url": [md.get("crawl_url", "") for md in metadata_dicts],
-                "crawl_date": [md.get("crawl_date", "") for md in metadata_dicts],
+                "crawl_date": [
+                    self._normalize_crawl_date(md.get("crawl_date", ""))
+                    for md in metadata_dicts
+                ],
                 "pdf_name": [md.get("pdf_name", "") for md in metadata_dicts],
                 "sub_domain": [md.get("sub_domain", "") for md in metadata_dicts],
                 "page_count": pa.array(
@@ -1074,7 +1082,7 @@ class DuckDBMetadataIndex(AbstractMetadataIndex):
             pdf_name = row[2]
             row_dict = {
                 "crawl_url": row[0],
-                "crawl_date": f"{row[1][0:4]}-{row[1][4:6]}-{row[1][6:8]}",
+                "crawl_date": row[1],
                 "pdf_name": row[2],
                 "sub_domain": row[3],
                 "page_count": row[5],
