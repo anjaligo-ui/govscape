@@ -75,9 +75,13 @@ def convert_filters_to_predicates(filters: dict) -> list[Predicate]:
         if not val:
             continue
         if ftype == "crawled_after":
-            predicates.append(RangePredicate("crawl_date", min_val=val))
+            predicates.append(
+                RangePredicate("crawl_date", min_val=val.replace("-", ""))
+            )
         elif ftype == "crawled_before":
-            predicates.append(RangePredicate("crawl_date", max_val=val))
+            predicates.append(
+                RangePredicate("crawl_date", max_val=val.replace("-", "") + "999999")
+            )
         elif ftype == "sub_domain":
             predicates.append(EqualityPredicate("sub_domain", val))
     return predicates

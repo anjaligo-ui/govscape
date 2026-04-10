@@ -960,10 +960,10 @@ class SQLiteMetadataIndex(AbstractMetadataIndex):
                 elif isinstance(predicate, RangePredicate):
                     if predicate.min_val is not None:
                         query += " AND " + predicate.field_name + " >= ?"
-                        params.append(predicate.min_val.replace("-", ""))
+                        params.append(predicate.min_val)
                     if predicate.max_val is not None:
                         query += " AND " + predicate.field_name + " <= ?"
-                        params.append(predicate.max_val.replace("-", "") + "999999")
+                        params.append(predicate.max_val)
         cursor.execute(query, params)
         rows = cursor.fetchall()
         metadata = {}
@@ -1048,14 +1048,14 @@ class DuckDBMetadataIndex(AbstractMetadataIndex):
                             """)
         self.conn.checkpoint()
 
-    def search(self, pdf_names, predicates: list[Predicate] | None = None):
+    def search(self, pdf_names: list[str], predicates: list[Predicate] | None = None):
         self._connect()
         placeholders = ", ".join(["?"] * len(pdf_names))
         query = (
             "SELECT crawl_url, crawl_date, pdf_name, sub_domain, s3_url, page_count "
             f"FROM metadata WHERE pdf_name IN ({placeholders})"
         )
-        params = list(pdf_names)
+        params: list = list(pdf_names)
         if predicates:
             for predicate in predicates:
                 if isinstance(predicate, EqualityPredicate):
@@ -1064,10 +1064,10 @@ class DuckDBMetadataIndex(AbstractMetadataIndex):
                 elif isinstance(predicate, RangePredicate):
                     if predicate.min_val is not None:
                         query += " AND " + predicate.field_name + " >= ?"
-                        params.append(predicate.min_val.replace("-", ""))
+                        params.append(predicate.min_val)
                     if predicate.max_val is not None:
                         query += " AND " + predicate.field_name + " <= ?"
-                        params.append(predicate.max_val.replace("-", "") + "999999")
+                        params.append(predicate.max_val)
         rows = self.conn.execute(query, params).fetchall()
         metadata = {}
         for row in rows:
