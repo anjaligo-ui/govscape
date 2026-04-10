@@ -15,8 +15,8 @@ class RangePredicate(Predicate):
     def __init__(
         self,
         field_name: str,
-        min_val: float | None = None,
-        max_val: float | None = None,
+        min_val: str | float | None = None,
+        max_val: str | float | None = None,
     ):
         self.field_name = field_name
         self.min_val = min_val
@@ -27,9 +27,9 @@ class RangePredicate(Predicate):
 
 
 class EqualityPredicate(Predicate):
-    def __init__(self, field_name: str, value: str):
+    def __init__(self, field_name: str, val: str | float):
         self.field_name = field_name
-        self.value = value
+        self.value = val
 
     def __str__(self):
         return f"{self.field_name} = {self.value}"
@@ -45,7 +45,7 @@ class Query:
     ):
         self.q_text = q_text
         self.search_type = search_type
-        self.predicates = predicates
+        self.predicates = predicates if predicates is not None else []
         self.page = page
 
 
