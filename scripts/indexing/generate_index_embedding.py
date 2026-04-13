@@ -1,4 +1,3 @@
-import argparse
 import json
 import logging
 import os
@@ -7,7 +6,9 @@ import time
 
 import numpy as np
 
+from govscape.config import DataModel
 from govscape.data_loader import RemoteDirectoryIterator, build_data_loader
+from govscape.utils import base_argument_parser
 
 import govscape as gs
 
@@ -28,41 +29,20 @@ logging.basicConfig(
 
 if __name__ == "__main__":
     # FIELDS TO SET --------------------------------------------------------
-    parser = argparse.ArgumentParser(description="S3 EC2 Embedding Pipeline")
+    parser = base_argument_parser(description="Generate embedding index")
+    parser.set_defaults(batch_size=350000)
     parser.add_argument(
-        "--num_pages_to_process",
-        type=int,
-        default=100,
-        help="Number of pages to process from S3",
+        "--embedding_type",
+        type=str,
+        choices=["txt", "img_pg"],
+        help="Which embedding type to index",
+        required=True,
     )
-    parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=350000,
-        help="Number of pages to process at a time",
-    )
-    parser.add_argument("--bucket_name", type=str, help="S3 Bucket Name")
-    parser.add_argument(
-        "--remote_data_dir", type=str, help="Remote Directory for input data"
-    )
-    parser.add_argument(
-        "--embedding_prefix", type=str, help="S3 Prefix for embedding files"
-    )
-    parser.add_argument("--out_index_prefix", type=str, help="S3 Prefix for index data")
     parser.add_argument(
         "--index_type",
         type=str,
         choices=["FAISS"],
         help='Type of index to create (e.g., "FAISS")',
-    )
-    parser.add_argument(
-        "--backend", choices=["s3", "local"], default="s3", help="Data backend to use"
-    )
-    parser.add_argument(
-        "--local_base_dir",
-        type=str,
-        default="data",
-        help="Base directory for local backend",
     )
     args = parser.parse_args()
     NUM_PAGES_TO_PROCESS = args.num_pages_to_process
@@ -77,39 +57,61 @@ if __name__ == "__main__":
     )  # 'govscape/'
     LOCAL_DATA_DIR = os.path.join(PROJECT_ROOT, "data", "prod")  # 'govscape/data/prod/'
     REMOTE_DATA_DIR = args.remote_data_dir  # 'prod-serving/'
-    REMOTE_EMBEDDING_DIR = os.path.join(
-        REMOTE_DATA_DIR, args.embedding_prefix
-    )  # 'prod-serving/embeddings/'
-    LOCAL_EMBEDDING_DIR = os.path.join(
-        LOCAL_DATA_DIR, args.embedding_prefix.replace("/", "")
-    )  # 'govscape/data/prod/embeddings/'
-    REMOTE_INDEX_PREFIX = args.out_index_prefix.rstrip("/")  # 'index', 'index_img_pg'
-    REMOTE_INDEX_DIR = os.path.join(
-        REMOTE_DATA_DIR, REMOTE_INDEX_PREFIX
-    )  # 'prod-serving/index'
-    LOCAL_INDEX_DIR = os.path.join(LOCAL_DATA_DIR, REMOTE_INDEX_PREFIX)
-    # 'govscape/data/prod/index/'
+    local_dm = DataModel(LOCAL_DATA_DIR)
+    remote_dm = DataModel(REMOTE_DATA_DIR)
+    REMOTE_EMBEDDING_DIR, REMOTE_INDEX_DIR, LOCAL_EMBEDDING_DIR, LOCAL_INDEX_DIR = (
+        None,
+        None,
+        None,
+        None,
+    )
+    if args.embedding_type == "txt":
+        REMOTE_EMBEDDING_DIR = (
+            remote_dm.embedding_directory
+        )  # 'prod-serving/embeddings/'
+        REMOTE_INDEX_DIR = remote_dm.index_directory  # 'prod-serving/index'
+        LOCAL_EMBEDDING_DIR = (
+            local_dm.embedding_directory
+        )  # 'govscape/data/prod/embeddings/'
+        LOCAL_INDEX_DIR = local_dm.index_directory  # 'govscape/data/prod/index/'
+    elif args.embedding_type == "img_pg":
+        REMOTE_EMBEDDING_DIR = (
+            remote_dm.embedding_img_pg_directory
+        )  # 'prod-serving/embeddings_img_pg/'
+        REMOTE_INDEX_DIR = (
+            remote_dm.index_img_pg_directory
+        )  # 'prod-serving/index_img_pg'
+        LOCAL_EMBEDDING_DIR = (
+            local_dm.embedding_img_pg_directory
+        )  # 'govscape/data/prod/embeddings_img_pg/'
+        LOCAL_INDEX_DIR = (
+            local_dm.index_img_pg_directory
+        )  # 'govscape/data/prod/index_img_pg/'
+    else:
+        raise ValueError("embedding_type must be either 'txt' or 'img_pg'")
+
     REMOTE_CHECKPOINT_PATH = os.path.join(
-        REMOTE_DATA_DIR, "checkpoints", "checkpoint_" + REMOTE_INDEX_PREFIX + ".json"
-    )  # 'prod-serving/checkpoints/index_checkpoint.json'
+        remote_dm.checkpoints_directory,
+        "checkpoint_index_" + args.embedding_type + ".json",
+    )
     LOCAL_CHECKPOINT_PATH = os.path.join(
-        LOCAL_DATA_DIR, "checkpoints", "checkpoint_" + REMOTE_INDEX_PREFIX + ".json"
+        local_dm.checkpoints_directory,
+        "checkpoint_index_" + args.embedding_type + ".json",
     )
-    # 'govscape/data/prod/checkpoints/checkpoint_index.json'
     REMOTE_PERFORMANCE_PATH = os.path.join(
-        REMOTE_DATA_DIR, "performance", "performance_" + REMOTE_INDEX_PREFIX + ".json"
+        remote_dm.performance_directory,
+        "performance_index_" + args.embedding_type + ".json",
     )
-    # 'prod-serving/performance/index_performance.json'
     LOCAL_PERFORMANCE_PATH = os.path.join(
-        LOCAL_DATA_DIR, "performance", "performance_" + REMOTE_INDEX_PREFIX + ".json"
+        local_dm.performance_directory,
+        "performance_index_" + args.embedding_type + ".json",
     )
-    # 'govscape/data/prod/performance/performance_index.json'
 
     os.makedirs(LOCAL_DATA_DIR, exist_ok=True)
     os.makedirs(LOCAL_EMBEDDING_DIR, exist_ok=True)
     os.makedirs(LOCAL_INDEX_DIR, exist_ok=True)
-    os.makedirs(os.path.dirname(LOCAL_CHECKPOINT_PATH), exist_ok=True)
-    os.makedirs(os.path.dirname(LOCAL_PERFORMANCE_PATH), exist_ok=True)
+    os.makedirs(local_dm.checkpoints_directory, exist_ok=True)
+    os.makedirs(local_dm.performance_directory, exist_ok=True)
 
     # ---------------------------------------------------------------------------
     pipeline_times = {
