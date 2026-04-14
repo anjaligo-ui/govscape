@@ -22,6 +22,52 @@ class DataModel:
         self.stats_file = os.path.join(data_dir, "total_pdfs.txt")
         self.blacklist_file = os.path.join(data_dir, "blacklist.txt")
 
+    # Per-PDF subdirectory helpers
+
+    def txt_pdf_directory(self, digest: str) -> str:
+        return os.path.join(self.txt_directory, digest)
+
+    def img_pdf_directory(self, digest: str) -> str:
+        return os.path.join(self.image_directory, digest)
+
+    def embedding_pdf_directory(self, digest: str) -> str:
+        return os.path.join(self.embedding_directory, digest)
+
+    def embedding_img_pg_pdf_directory(self, digest: str) -> str:
+        return os.path.join(self.embedding_img_pg_directory, digest)
+
+    def metadata_pdf_directory(self, digest: str) -> str:
+        return os.path.join(self.metadata_directory, digest)
+
+    # Per-page file helpers
+
+    def txt_page_path(self, digest: str, pg_no: int) -> str:
+        return os.path.join(self.txt_directory, digest, f"{digest}_{pg_no}.txt")
+
+    def img_page_path(self, digest: str, pg_no: int) -> str:
+        return os.path.join(self.image_directory, digest, f"{digest}_{pg_no}.jpeg")
+
+    def embedding_page_path(self, digest: str, pg_no: int) -> str:
+        return os.path.join(self.embedding_directory, digest, f"{digest}_{pg_no}.npy")
+
+    def embedding_img_pg_page_path(self, digest: str, pg_no: int) -> str:
+        return os.path.join(
+            self.embedding_img_pg_directory, digest, f"{digest}_{pg_no}.npy"
+        )
+
+    def metadata_file_path(self, digest: str) -> str:
+        return os.path.join(self.metadata_directory, digest, "metadata.json")
+
+    def checkpoint_file_path(self, checkpoint_prefix: str) -> str:
+        return os.path.join(
+            self.checkpoints_directory, f"{checkpoint_prefix}_checkpoint.json"
+        )
+
+    def performance_file_path(self, performance_prefix: str) -> str:
+        return os.path.join(
+            self.performance_directory, f"{performance_prefix}_performance.json"
+        )
+
 
 class ServerConfig:
     def __init__(
