@@ -67,12 +67,9 @@ class TestEasyOCRImpl:
     def test_easyocr_validate_import_error(self):
         """Test EasyOCR validation fails without easyocr package."""
         ocr = EasyOCRImpl()
-        # This will fail if easyocr is not installed
-        # In test environment, we may need to mock this
+        # Mock easyocr being None (not installed)
         with (
-            patch(
-                "govscape.processing.ocr.easyocr_impl.easyocr", side_effect=ImportError
-            ),
+            patch("govscape.processing.ocr.easyocr_impl.easyocr", None),
             pytest.raises(ImportError),
         ):
             ocr.validate()
@@ -99,12 +96,10 @@ class TestPaddleOCRImpl:
         mock_paddleocr.return_value = mock_ocr
 
         ocr = PaddleOCRImpl(language="en")
-        # We need to mock the import as well
-        with patch(
-            "govscape.processing.ocr.paddleocr_impl.PaddleOCR", return_value=mock_ocr
-        ):
-            ocr.validate()
-            assert ocr.ocr is not None
+        ocr.validate()
+
+        assert ocr.ocr is not None
+        mock_paddleocr.assert_called_once()
 
 
 class TestOLMOcrImpl:
@@ -135,8 +130,9 @@ class TestOcrMyPDFImpl:
         ocr = OcrMyPDFImpl()
         assert ocr.language == "eng"
 
+    @patch("govscape.processing.ocr.ocrmypdf_impl.ocrmypdf")
     @patch("govscape.processing.ocr.ocrmypdf_impl.pytesseract")
-    def test_ocrmypdf_extract_text(self, mock_pytesseract):
+    def test_ocrmypdf_extract_text(self, mock_pytesseract, mock_ocrmypdf):
         """Test OcrMyPDF text extraction."""
         mock_pytesseract.image_to_string.return_value = "Hello World"
 
@@ -200,7 +196,10 @@ class TestOCRProcessingStage:
             ocr_type="easyocr",
         )
 
-        with pytest.raises(ValueError, match="Image input directory does not exist"):
+        with (
+            patch("govscape.processing.ocr_processing_stage.CV2_AVAILABLE", True),
+            pytest.raises(ValueError, match="Image input directory does not exist"),
+        ):
             stage.validate()
 
     def test_ocr_stage_build_engines(self, temp_data_dir):
@@ -241,6 +240,8 @@ class TestOCRProcessingStage:
 
     def test_ocr_stage_creates_txt_directory(self, temp_data_dir):
         """Test that OCRProcessingStage creates txt directory."""
+        pytest.importorskip("cv2", reason="cv2 (OpenCV) is required for this test")
+
         tmpdir, data_model = temp_data_dir
 
         stage = OCRProcessingStage(

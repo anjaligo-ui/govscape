@@ -6,6 +6,11 @@ import numpy as np
 
 from .base_ocr import BaseOCR
 
+try:
+    import olmocr
+except ImportError:
+    olmocr = None
+
 
 class OLMOcrImpl(BaseOCR):
     """OCR implementation using OLMOcr.
@@ -25,16 +30,14 @@ class OLMOcrImpl(BaseOCR):
 
     def validate(self) -> None:
         """Validate OLMOcr installation and initialize the model."""
-        try:
-            import olmocr  # noqa: F401
-        except ImportError as e:
+        if olmocr is None:
             raise ImportError(
                 "olmocr is not installed. Install it with: pip install olmocr"
-            ) from e
+            )
 
         try:
             # Initialize the model
-            from olmocr import OLMOcr as OLMOcrModel
+            OLMOcrModel = olmocr.OLMOcr
 
             self.model = OLMOcrModel(model_name=self.model_name)
             self.logger.info(

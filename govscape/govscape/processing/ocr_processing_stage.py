@@ -3,7 +3,13 @@
 import logging
 import os
 
-import cv2
+try:
+    import cv2
+
+    CV2_AVAILABLE = True
+except ImportError:
+    cv2 = None
+    CV2_AVAILABLE = False
 
 from ..config import DataModel
 from .ocr.base_ocr import BaseOCR
@@ -71,6 +77,12 @@ class OCRProcessingStage(ProcessingStage):
 
     def validate(self) -> None:
         """Validate that the image directory exists and OCR engine is initialized."""
+        if not CV2_AVAILABLE:
+            raise ImportError(
+                "cv2 (OpenCV) is required for OCR processing. "
+                "Install it with: pip install opencv-python"
+            )
+
         if not os.path.isdir(self.data_model.image_directory):
             raise ValueError(
                 f"Image input directory does not exist: "
