@@ -6,6 +6,11 @@ import numpy as np
 
 from .base_ocr import BaseOCR
 
+try:
+    from paddleocr import PaddleOCR
+except ImportError:
+    PaddleOCR = None
+
 
 class PaddleOCRImpl(BaseOCR):
     """OCR implementation using PaddleOCR.
@@ -27,17 +32,13 @@ class PaddleOCRImpl(BaseOCR):
 
     def validate(self) -> None:
         """Validate PaddleOCR installation and initialize the OCR engine."""
-        try:
-            from paddleocr import PaddleOCR  # noqa: F401
-        except ImportError as e:
+        if PaddleOCR is None:
             raise ImportError(
                 "paddleocr is not installed. Install it with: "
                 "pip install paddleocr paddlepaddle"
-            ) from e
+            )
 
         try:
-            from paddleocr import PaddleOCR
-
             self.ocr = PaddleOCR(
                 use_angle_cls=True, lang=self.language, use_gpu=self.use_gpu
             )

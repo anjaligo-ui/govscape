@@ -6,6 +6,11 @@ import numpy as np
 
 from .base_ocr import BaseOCR
 
+try:
+    import easyocr
+except ImportError:
+    easyocr = None
+
 
 class EasyOCRImpl(BaseOCR):
     """OCR implementation using EasyOCR.
@@ -27,16 +32,12 @@ class EasyOCRImpl(BaseOCR):
 
     def validate(self) -> None:
         """Validate EasyOCR installation and initialize the reader."""
-        try:
-            import easyocr  # noqa: F401
-        except ImportError as e:
+        if easyocr is None:
             raise ImportError(
                 "easyocr is not installed. Install it with: pip install easyocr"
-            ) from e
+            )
 
         try:
-            import easyocr
-
             self.reader = easyocr.Reader(self.languages, gpu=self.gpu)
             self.logger.info(
                 f"EasyOCR reader initialized with languages: {self.languages}, "

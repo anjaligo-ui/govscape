@@ -8,6 +8,13 @@ from PIL import Image
 
 from .base_ocr import BaseOCR
 
+try:
+    import ocrmypdf
+    import pytesseract
+except ImportError:
+    ocrmypdf = None
+    pytesseract = None
+
 
 class OcrMyPDFImpl(BaseOCR):
     """OCR implementation using OcrMyPDF.
@@ -30,19 +37,15 @@ class OcrMyPDFImpl(BaseOCR):
 
     def validate(self) -> None:
         """Validate OcrMyPDF installation and dependencies."""
-        try:
-            import ocrmypdf  # noqa: F401
-        except ImportError as e:
+        if ocrmypdf is None:
             raise ImportError(
                 "ocrmypdf is not installed. Install it with: pip install ocrmypdf"
-            ) from e
+            )
 
-        try:
-            import pytesseract  # noqa: F401
-        except ImportError as e:
+        if pytesseract is None:
             raise ImportError(
                 "pytesseract is not installed. Install it with: pip install pytesseract"
-            ) from e
+            )
 
         self.logger.info(
             f"OcrMyPDF initialized with language: {self.language}, "
